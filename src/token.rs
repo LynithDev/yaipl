@@ -51,12 +51,17 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, Box<dyn Error>> {
         }
 
         fn check_word_loop(char: char) -> bool {
-            !char.is_whitespace() && is_parenthesis(char).is_none() && !is_comment(char) && is_scope_gate(char).is_none()
+            !char.is_whitespace() 
+            && !is_comment(char) 
+            && is_parenthesis(char).is_none() 
+            && is_scope_gate(char).is_none()
+            && is_operator_basic(char).is_none()
         }
         
         // Collecting words
         let mut word = String::new();
         while chars.len() > 0 && check_word_loop(char) {
+            println!("{:#?} {:#?} {:#?}", word, char, is_operator_basic(char));
             word.push(char);
             char = chars.remove(0);
         }
@@ -77,7 +82,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, Box<dyn Error>> {
 
                     match word.as_str() {
                         input if is_keyword(input) => Token::Keyword(word),
-                        input if is_operator(input) => Token::Operator(word),
+                        // input if is_operator(input) => Token::Operator(word),
                         _ => Token::Symbol(word)
                     }
                 }
@@ -122,6 +127,12 @@ fn check_stuff(mut tokens: &mut Vec<Token>, chars: &mut Vec<char>, mut char: cha
         return Ok(true);
     }
 
+    if let Some(operator) = is_operator_basic(char) {
+        tokens.push(Token::Operator(operator.to_string()));
+
+        return Ok(true);
+    }
+
     if let Some(paren) = is_parenthesis(char) {
         match paren {
             '(' => tokens.push(Token::LParen),
@@ -160,12 +171,18 @@ pub fn is_keyword(input: &str) -> bool {
     }
 }
 
-pub fn is_operator(input: &str) -> bool {
+pub fn is_operator(chars: &mut Vec<char>) -> Option<&str> {
+    // TODO: Attempt to find operators such as && and || and ==
+    None
+}
+
+pub fn is_operator_basic(input: char) -> Option<char> {
     match input {
-        "+" | "-" | "*" | "/" | "=" => true,
-        _ => false
+        '+' | '-' | '*' | '/' | '%' | '<' | '>' | '=' => Some(input),
+        _ => None
     }
 }
+
 
 pub fn is_parenthesis(input: char) -> Option<char> {
     if input == '(' || input == ')' {
