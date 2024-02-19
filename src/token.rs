@@ -61,7 +61,6 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, Box<dyn Error>> {
         // Collecting words
         let mut word = String::new();
         while chars.len() > 0 && check_word_loop(char) {
-            println!("{:#?} {:#?} {:#?}", word, char, is_operator_basic(char));
             word.push(char);
             char = chars.remove(0);
         }
@@ -69,7 +68,6 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, Box<dyn Error>> {
         if check_word_loop(char) {
             word.push(char);
         }
-
 
         // Adding our tokens !!
         if !word.is_empty() {
@@ -82,7 +80,6 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, Box<dyn Error>> {
 
                     match word.as_str() {
                         input if is_keyword(input) => Token::Keyword(word),
-                        // input if is_operator(input) => Token::Operator(word),
                         _ => Token::Symbol(word)
                     }
                 }
@@ -127,9 +124,34 @@ fn check_stuff(mut tokens: &mut Vec<Token>, chars: &mut Vec<char>, mut char: cha
         return Ok(true);
     }
 
-    if let Some(operator) = is_operator_basic(char) {
-        tokens.push(Token::Operator(operator.to_string()));
+    if is_operator_arithmetic(char).is_some() {
+        tokens.push(Token::Operator(char.to_string()));
+        return Ok(true);
+    }
 
+    if let Some(char) = is_operator_equation(char) {
+        match char {
+            '=' => {
+                if let Some(prev) = tokens.last() {
+                    match prev.to_owned() {
+                        Token::Operator(prev_value) => {
+                            if prev_value.len() == 1 {
+                                if let Ok(parsed) = prev_value.parse::<char>() {
+                                    if is_operator_arithmetic(parsed).is_some() {
+                                        tokens.pop();
+                                        tokens.push(Token::Operator(format!("{}=", parsed)));
+                                        return Ok(true);
+                                    }
+                                }
+                            }
+                        },
+                        _ => {}
+                    }
+                }
+            },
+            _ => {}
+        }
+        tokens.push(Token::Operator(char.to_string()));
         return Ok(true);
     }
 
@@ -172,17 +194,38 @@ pub fn is_keyword(input: &str) -> bool {
 }
 
 pub fn is_operator(chars: &mut Vec<char>) -> Option<&str> {
-    // TODO: Attempt to find operators such as && and || and ==
+    let mut cloned = chars.clone();
+    let char = cloned.remove(0);
+    let mut word = String::new();
+
+    while !cloned.is_empty() && !char.is_whitespace() {
+        word.push(char);
+        cloned.remove(0);
+    }
+
     None
 }
 
 pub fn is_operator_basic(input: char) -> Option<char> {
     match input {
-        '+' | '-' | '*' | '/' | '%' | '<' | '>' | '=' => Some(input),
+        char if is_operator_arithmetic(char).is_some() || is_operator_equation(char).is_some() => Some(input),
         _ => None
     }
 }
 
+pub fn is_operator_equation(input: char) -> Option<char> {
+    match input {
+        '=' | '<' | '>' => Some(input),
+        _ => None
+    }
+}
+
+pub fn is_operator_arithmetic(input: char) -> Option<char> {
+    match input {
+        '+' | '-' | '*' | '/' | '%' => Some(input),
+        _ => None
+    }
+}
 
 pub fn is_parenthesis(input: char) -> Option<char> {
     if input == '(' || input == ')' {
