@@ -1,6 +1,6 @@
 use std::{fs, process::exit};
 
-use another_interpreted_language::parser::{self, SyntaxError};
+use another_interpreted_language::{parser, SyntaxError};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -18,7 +18,11 @@ fn main() {
     }
 
     let file_path = &args[1];
-    let content = match fs::read_to_string(file_path) {
+    parse_file(file_path)
+}
+
+fn parse_file(path: &String) {
+    let content = match fs::read_to_string(path) {
         Ok(text) => text,
         Err(err) => {
             println!("Could not read file: {}", err);
@@ -26,16 +30,21 @@ fn main() {
         } 
     };
 
-    if let Err(err) = parser::parse(&content) {
-        if let Some(err) = err.downcast_ref::<SyntaxError>() {
-            println!("SyntaxError @ '{}:{}:{}'", file_path, err.line, err.col);
-            for line in err.err.lines() {
-                println!("  {}", red(line));
+    match parser::parse(&content) {
+        Ok(ret) => {
+            println!("{}", ret);
+        },
+        Err(err) => {
+            if let Some(err) = err.downcast_ref::<SyntaxError>() {
+                println!("SyntaxError @ '{}:{}:{}'", path, err.line, err.col);
+                for line in err.err.lines() {
+                    println!("  {}", red(line));
+                }
             }
+    
+            println!("{}", err);
+            exit(2)
         }
-
-        println!("Failed to parse content. Exiting");
-        exit(2)
     }
 }
 

@@ -14,24 +14,42 @@ pub enum Token {
     Scope(Vec<Token>)
 }
 
+impl Token {
+    pub fn get_name(&self) -> String {
+        use Token::*;
+        match self {
+            Boolean(_) => "Boolean",
+            Float(_) => "Float",
+            Integer(_) => "Integer",
+            Keyword(_) => "Keyword",
+            Operator(_) => "Operator",
+            Scope(_) => "Scope",
+            Symbol(_) => "Symbol",
+            LParen => "LParen",
+            RParen => "RParen",
+            EOL => "EndOfLine",
+        }.to_string()
+    }
+}
+
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use Token::*;
         f.write_str(
             (match self {
-                Integer(v) => format!("{}", v),
-                Float(v) => format!("{}", v),
-                Boolean(v) => format!("{}", v),
+                Integer(v) => format!("{}({})", self.get_name(), v),
+                Float(v) => format!("{}({})", self.get_name(), v),
+                Boolean(v) => format!("{}({})", self.get_name(), v),
 
                 LParen => format!("("),
                 RParen => format!(")"),
-                EOL => format!("eol"),
+                EOL => format!("EOL"),
                 
                 Scope(tokens) => format!("SCOPE {:#?} ESCOPE", tokens),
 
                 Operator(v) 
                 | Symbol(v) 
-                | Keyword(v) => format!("{}", v),
+                | Keyword(v) => format!("{}({})", self.get_name(), v),
             }).as_str()
         )
     }
@@ -91,8 +109,6 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, Box<dyn Error>> {
 
         check_stuff(&mut tokens, &mut chars, char)?;
     }
-
-    push_eol(&mut tokens);
 
     Ok(tokens)
 }
