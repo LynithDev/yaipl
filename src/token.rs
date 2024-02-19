@@ -7,6 +7,7 @@ pub enum Token {
     Symbol(String),
     Integer(i32),
     Float(f32),
+    Boolean(bool),
     EOL,
     LParen,
     RParen,
@@ -20,6 +21,7 @@ impl Display for Token {
             (match self {
                 Integer(v) => format!("{}", v),
                 Float(v) => format!("{}", v),
+                Boolean(v) => format!("{}", v),
 
                 LParen => format!("("),
                 RParen => format!(")"),
@@ -72,18 +74,19 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, Box<dyn Error>> {
         // Adding our tokens !!
         if !word.is_empty() {
             tokens.push(
-                if let Ok(num) = word.replace("_", "").parse::<i32>() {
+                if let Some(num) = is_integer(&word) { 
                     Token::Integer(num)
-                } else if let Ok(num) = word.replace("_", "").parse::<f32>() {
+                } else if let Some(num) = is_float(&word) {
                     Token::Float(num)
+                } else if let Some(bol) = is_boolean(&word) {
+                    Token::Boolean(bol)
                 } else {
-
                     match word.as_str() {
                         input if is_keyword(input) => Token::Keyword(word),
                         _ => Token::Symbol(word)
                     }
                 }
-            );
+            )
         }
 
         check_stuff(&mut tokens, &mut chars, char)?;
@@ -137,7 +140,8 @@ fn check_stuff(mut tokens: &mut Vec<Token>, chars: &mut Vec<char>, mut char: cha
                         Token::Operator(prev_value) => {
                             if prev_value.len() == 1 {
                                 if let Ok(parsed) = prev_value.parse::<char>() {
-                                    if is_operator_arithmetic(parsed).is_some() {
+                                    // Arithmetic assignment
+                                    if is_operator_equation(parsed).is_some() || is_operator_arithmetic(parsed).is_some() {
                                         tokens.pop();
                                         tokens.push(Token::Operator(format!("{}=", parsed)));
                                         return Ok(true);
@@ -186,24 +190,35 @@ fn check_stuff(mut tokens: &mut Vec<Token>, chars: &mut Vec<char>, mut char: cha
 // -----
 // UTILS
 // -----
+pub fn is_integer(input: &str) -> Option<i32> {
+    if let Ok(num) = input.replace("_", "").parse::<i32>() {
+        return Some(num);
+    }
+
+    None
+}
+
+pub fn is_float(input: &str) -> Option<f32> {
+    if let Ok(num) = input.replace("_", "").parse::<f32>() {
+        return Some(num);
+    }
+
+    None
+}
+
+pub fn is_boolean(input: &str) -> Option<bool> {
+    match input {
+        "true" => Some(true),
+        "false" => Some(false),
+        _ => None
+    }
+}
+
 pub fn is_keyword(input: &str) -> bool {
     match input {
         "if" | "for" | "while" | "return" => true,
         _ => false,
     }
-}
-
-pub fn is_operator(chars: &mut Vec<char>) -> Option<&str> {
-    let mut cloned = chars.clone();
-    let char = cloned.remove(0);
-    let mut word = String::new();
-
-    while !cloned.is_empty() && !char.is_whitespace() {
-        word.push(char);
-        cloned.remove(0);
-    }
-
-    None
 }
 
 pub fn is_operator_basic(input: char) -> Option<char> {
