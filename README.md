@@ -1,9 +1,10 @@
-<center>
+<div align="center">
 
 # YAIPL - Yet Another Interpreted Programming Language
 Written in Rust so its 🚀 ***blazingly fast*** 🚀
 
-</center>
+</div>
+<br>
 
 ## Types
 YAIPL aims to be a dynamically typed language. Supported types are: `Integer`, `Float`, `Boolean`, `Function`
@@ -17,17 +18,17 @@ YAIPL aims to be a dynamically typed language. Supported types are: `Integer`, `
 </tr>
 
 <tr>
-    <td>`while`</td>
+    <td><kbd>while</kbd></td>
     <td>Loop through a block of code as long as a specified condition is true</td>
 </tr>
 
 <tr>
-    <td>`for`</td>
+    <td><kbd>for</kbd></td>
     <td>Loop through a block of code a specified number of times</td>
 </tr>
 
 <tr>
-    <td>`if`</td>
+    <td><kbd>if</kbd></td>
     <td>Execute a block of code if a specified condition is true</td>
 </tr>
 
