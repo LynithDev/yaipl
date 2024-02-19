@@ -38,34 +38,42 @@ fn eval(tokens: &mut Vec<Token>) -> Result<Token, TokenError> {
     })
 }
 
-fn eval_operator(tokens: &mut Vec<Token>, token: Token, mut index: &mut usize) -> Result<Token, TokenError> {
+fn eval_operator(tokens: &mut Vec<Token>, token: Token, index: &mut usize) -> Result<Token, TokenError> {
     let operator = match &token {
         Token::Operator(operator) => operator,
         _ => return Err(TokenError::from(Some(token), "Token is not valid operator!"))
     };
 
     let left_token = match tokens.get(*index - 1) {
-        Some(token) => token.to_owned(),
+        Some(token) => token,
         None => return Err(TokenError::from(Some(token), "Missing left expression for operator"))
     };
 
     let right_token = match tokens.get(*index + 1) {
-        Some(token) => token.to_owned(),
+        Some(token) => token,
         None => return Err(TokenError::from(Some(token), "Missing right expression for operator"))
     };
 
-    use Token::*;
-    let token = match operator.as_str() {
-        "+" => {
-            Ok(match (left_token, right_token) {
-                (Integer(l), Integer(r)) => Integer(l + r),
-                (Integer(l), Float(r)) => Float(l as f32 + r),
-                (Float(l), Float(r)) => Float(l + r),
-                (Float(l), Integer(r)) => Float(l + r as f32),
-                _ => return Err(TokenError::from(Some(token.to_owned()), format!("Invalid type for {}", operator).as_str()))
+    macro_rules! eval_op {
+        ($operator:tt) => {
+            Ok(match (left_token.to_owned(), right_token.to_owned()) {
+                (Token::Integer(l), Token::Integer(r)) => Token::Integer(l $operator r),
+                (Token::Integer(l), Token::Float(r)) => Token::Float(l as f32 $operator r),
+                (Token::Float(l), Token::Float(r)) => Token::Float(l $operator r),
+                (Token::Float(l), Token::Integer(r)) => Token::Float(l $operator r as f32),
+                (Token::Float(_), _) | (Token::Integer(_), _) => return Err(TokenError::from(Some(token.to_owned()), format!("Invalid right hand type '{}' for '{}' operation", right_token.get_name(), stringify!($operator)).as_str())),
+                (_, Token::Float(_)) | (_, Token::Integer(_)) => return Err(TokenError::from(Some(token.to_owned()), format!("Invalid left hand type '{}' for '{}' operation", left_token.get_name(), stringify!($operator)).as_str())),
+                _ => return Err(TokenError::from(Some(token.to_owned()), format!("Invalid types for '{}' operation", stringify!($operator)).as_str())),
             })
-        },
-        _ => Err(TokenError::from(Some(token), "Invalid operator"))
+        };
+    }
+
+    let token = match operator.as_str() {
+        "+" => eval_op!(+),
+        "-" => eval_op!(-),
+        "/" => eval_op!(/),
+        "*" => eval_op!(*),
+        _ => Err(TokenError::from(Some(token.to_owned()), format!("Unsupported operator '{}'", operator).as_str()))
     }?;
 
     tokens.drain(0..3);

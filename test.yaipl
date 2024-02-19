@@ -1,1 +1,3 @@
-1 + 2 + 6.123 + 3.256
+2 + 3 * 2 # should be 8, returns 10...
+
+# TODO: Implement order of operations

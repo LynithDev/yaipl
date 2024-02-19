@@ -1,6 +1,6 @@
 use std::{fs, process::exit};
 
-use another_interpreted_language::{parser, SyntaxError};
+use another_interpreted_language::{parser, SyntaxError, TokenError};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -40,9 +40,20 @@ fn parse_file(path: &String) {
                 for line in err.err.lines() {
                     println!("  {}", red(line));
                 }
+            } else if let Some(err) = err.downcast_ref::<TokenError>() {
+                let token_name = match err.token.to_owned() {
+                    Some(token) => token.get_name(),
+                    None => String::from("unknown-token")
+                };
+
+                println!("TokenError @ '{}' for token '{}'", path, token_name);
+                for line in err.err.lines() {
+                    println!("  {}", red(line));
+                }
+            } else {
+                println!("{}", err);
             }
     
-            println!("{}", err);
             exit(2)
         }
     }

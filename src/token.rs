@@ -110,6 +110,12 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, Box<dyn Error>> {
         check_stuff(&mut tokens, &mut chars, char)?;
     }
 
+    if let Some(last) = tokens.last() {
+        if last.to_owned() == Token::EOL {
+            tokens.pop();
+        }
+    }
+
     Ok(tokens)
 }
 
