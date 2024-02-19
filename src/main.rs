@@ -1,8 +1,8 @@
-use std::{error::Error, fs, process::exit};
+use std::{fs, process::exit};
 
-use another_interpreted_language::token::tokenize;
+use another_interpreted_language::parser::{self, SyntaxError};
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() {
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() < 2 {
@@ -18,9 +18,27 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let file_path = &args[1];
-    let content = fs::read_to_string(file_path)?;
+    let content = match fs::read_to_string(file_path) {
+        Ok(text) => text,
+        Err(err) => {
+            println!("Could not read file: {}", err);
+            exit(1)
+        } 
+    };
 
-    println!("Tokens: {:#?}", tokenize(content.as_str())?);
+    if let Err(err) = parser::parse(&content) {
+        if let Some(err) = err.downcast_ref::<SyntaxError>() {
+            println!("SyntaxError @ '{}:{}:{}'", file_path, err.line, err.col);
+            for line in err.err.lines() {
+                println!("  {}", red(line));
+            }
+        }
 
-    Ok(())
+        println!("Failed to parse content. Exiting");
+        exit(2)
+    }
+}
+
+fn red(s: &str) -> String {
+    format!("\x1B[0;31m{}\x1B[0m", s)
 }
