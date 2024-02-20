@@ -1,13 +1,14 @@
 test = () {
-    i = true
-    if i == true {
-        print(5)
+    var = 5
+    var += 2
+
+    if var == 7 {
+        print(1)
+        return var
     }
 
-    while i < 10 {
-        print(i)
-        i += 1
-    }
+    print(0)
+    return var
 }
 
 test() + 5

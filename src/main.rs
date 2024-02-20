@@ -1,6 +1,6 @@
-use std::{fs, process::exit};
+use std::{error::Error, fs, process::exit};
 
-use another_interpreted_language::{parser, SyntaxError, TokenError};
+use another_interpreted_language::lexer::token::tokenize;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -18,10 +18,12 @@ fn main() {
     }
 
     let file_path = &args[1];
-    parse_file(file_path)
+    if let Err(err) = parse_file(file_path) {
+        println!("{:#?}", err);
+    }
 }
 
-fn parse_file(path: &String) {
+fn parse_file(path: &String) -> Result<(), Box<dyn Error>> {
     let content = match fs::read_to_string(path) {
         Ok(text) => text,
         Err(err) => {
@@ -30,35 +32,8 @@ fn parse_file(path: &String) {
         } 
     };
 
-    match parser::parse(&content) {
-        Ok(ret) => {
-            println!("{}", ret);
-        },
-        Err(err) => {
-            if let Some(err) = err.downcast_ref::<SyntaxError>() {
-                println!("SyntaxError @ '{}:{}:{}'", path, err.line, err.col);
-                for line in err.err.lines() {
-                    println!("  {}", red(line));
-                }
-            } else if let Some(err) = err.downcast_ref::<TokenError>() {
-                let token_name = match err.token.to_owned() {
-                    Some(token) => token.get_name(),
-                    None => String::from("unknown-token")
-                };
+    let tokens = tokenize(&content)?;
+    println!("{:#?}", tokens);
 
-                println!("TokenError @ '{}' for token '{}'", path, token_name);
-                for line in err.err.lines() {
-                    println!("  {}", red(line));
-                }
-            } else {
-                println!("{}", err);
-            }
-    
-            exit(2)
-        }
-    }
-}
-
-fn red(s: &str) -> String {
-    format!("\x1B[0;31m{}\x1B[0m", s)
+    Ok(())
 }

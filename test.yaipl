@@ -1,3 +1,1 @@
-2 + 3 * 2 # should be 8, returns 10...
-
-# TODO: Implement order of operations
+5 + 2
