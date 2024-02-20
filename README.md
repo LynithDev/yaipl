@@ -7,7 +7,7 @@ Written in Rust so its 🚀 ***blazingly fast*** 🚀
 <br>
 
 ## Types
-YAIPL aims to be a dynamically typed language. Supported types are: `Integer`, `Float`, `Boolean`, `Function`
+YAIPL aims to be a dynamically typed language. Supported types are: `Integer`, `Float`, `Boolean`, `String`, `Array`.
 
 ## Syntax and Keywords
 <table>
@@ -30,6 +30,11 @@ YAIPL aims to be a dynamically typed language. Supported types are: `Integer`, `
 <tr>
     <td><kbd>if</kbd></td>
     <td>Execute a block of code if a specified condition is true</td>
+</tr>
+
+<tr>
+    <td><kbd>return</kbd></td>
+    <td>Explicitly return a value</td>
 </tr>
 
 </table>
