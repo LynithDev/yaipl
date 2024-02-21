@@ -1,24 +1,15 @@
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
-    Variable(Identifier, Expression),
-    Expr(Expression),
-    Return(Expression)
+    ExpressionStatement(Expression),
 }
 
 pub type Program = Vec<Statement>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
-    Identifier(Identifier),
-    Literal(Literal),
-    Prefix(Prefix, Box<Expression>),
-    Infix(Operator, Box<Expression>, Box<Expression>),
-    List(Vec<Expression>),
-    Function(Vec<Identifier>, Program),
-    FunctionCall(Box<Expression>, Vec<Expression>),
-    If(Box<Expression>, Program),
-    While(Box<Expression>, Program),
-    For(Box<Statement>, Box<Expression>, Box<Statement>, Program)
+    IdentifierExpr(Identifier),
+    LiteralExpr(Literal),
+    BinaryExpr(Box<Expression>, Operator, Box<Expression>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -27,13 +18,6 @@ pub enum Literal {
     Float(f32),
     Boolean(i8),
     String(String),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Prefix {
-    Plus,
-    Minus,
-    Not
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -51,20 +35,14 @@ pub enum Operator {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Identifier {
-    pub name: String
-}
+pub struct Identifier(pub String);
 
 impl Identifier {
-    pub fn new(name: &str) -> Self {
-        Self {
-            name: name.to_string()
-        }
+    pub fn from_str(name: &str) -> Self {
+        Self(name.to_string())
     }
 
-    pub fn from_string(name: String) -> Self {
-        Self { 
-            name
-        }
+    pub fn from(name: String) -> Self {
+        Self(name)
     }
 }

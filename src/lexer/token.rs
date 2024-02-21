@@ -1,11 +1,50 @@
 #[derive(Debug, Clone, PartialEq)]
-pub enum Token {
+pub struct Position {
+    pub line: usize,
+    pub col: usize,
+}
+
+impl Position {
+    pub fn from(line: usize, col: usize) -> Self {
+        Self { line, col }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Token {
+    pub token_type: TokenType,
+    pub start: Position,
+    pub end: Position,
+}
+
+impl Token {
+    pub fn from_pos(token: TokenType, start: Position, end: Position) -> Self {
+        Self {
+            token_type: token,
+            start,
+            end
+        }
+    }
+
+    pub fn from(token: TokenType, start: (usize, usize), end: (usize, usize)) -> Self {
+        Self {
+            token_type: token,
+            start: Position::from(start.0, start.1),
+            end: Position::from(end.0, end.1)
+        }
+    }
+}
+
+pub type Tokens = Vec<Token>;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TokenType {
     // Types
     Integer(i32),
     Float(f32),
     Boolean(i8),
     String(String),
-    List(Vec<Token>),
+    List(Vec<TokenType>),
     
     // Operators
     Plus,
@@ -49,9 +88,9 @@ pub enum Token {
     Unknown
 }
 
-impl Token {
+impl TokenType {
     pub fn len(&self) -> usize {
-        use Token::*;
+        use TokenType::*;
         match self {
             Integer(n) => n.to_string().len(),
             Float(n) => n.to_string().len(),
