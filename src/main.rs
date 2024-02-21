@@ -1,6 +1,6 @@
 use std::{error::Error, fs, process::exit};
 
-use another_interpreted_language::lexer::token::tokenize;
+use another_interpreted_language::{lexer::tokenize, parser::{ast::{Expression, Literal, Operator, Program, Statement}, parse_tokens}};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -32,8 +32,39 @@ fn parse_file(path: &String) -> Result<(), Box<dyn Error>> {
         } 
     };
 
-    let tokens = tokenize(&content)?;
-    println!("{:#?}", tokens);
+    let mut tokens = tokenize(&content)?;
+    println!("----\nTokens\n{:#?}\nTokens\n----", tokens);
+    let ast = parse_tokens(&mut tokens);
+    println!("----\nProgram\n{:#?}\nProgram\n----", ast);
+
+    // let test = Program::from([
+    //     Statement::Expr(
+    //         Expression::FunctionCall(
+    //             Box::from(
+    //                 Expression::Literal(
+    //                     Literal::String("print".to_string())
+    //                 )
+    //             ),
+    //             vec!(
+    //                 Expression::Infix(
+    //                     Operator::Plus,
+    //                     Box::from(
+    //                         Expression::Literal(
+    //                             Literal::Integer(5)
+    //                         )
+    //                     ),
+    //                     Box::from(
+    //                         Expression::Literal(
+    //                             Literal::Integer(10)
+    //                         )
+    //                     ),
+    //                 )
+    //             )
+    //         )
+    //     )
+    // ]);
+
+    // println!("{:#?}", test);
 
     Ok(())
 }
