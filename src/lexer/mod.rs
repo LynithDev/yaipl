@@ -139,12 +139,14 @@ impl Lexer {
     
         if let Some(last) = self.tokens.last() {
             match last.token_type {
-                TokenType::EndOfFile => {},
+                TokenType::EndOfLine => {},
                 _ => {
-                    self.tokens.push(Token::from(TokenType::EndOfFile, (0, 0), (0, 0)))
+                    self.tokens.push(Token::from(TokenType::EndOfLine, (0, 0), (0, 0)))
                 },
             }
         }
+
+        self.tokens.push(Token::from(TokenType::EndOfFile, (0, 0), (0, 0)));
         
         Ok(&self.tokens)
     }

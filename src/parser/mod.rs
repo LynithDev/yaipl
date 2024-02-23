@@ -87,10 +87,7 @@ impl<'a> Parser<'a> {
 
     fn expression_statement(&mut self) -> ParserResult<ExpressionStatement> {
         let expression = self.expression()?;
-        match self.consume(TokenType::EndOfLine) {
-            Ok(_) => {},
-            Err(err) => error!(format!("aaa {} {:?}", err, expression)),
-        };
+        self.consume(TokenType::EndOfLine)?;
         Ok(ExpressionStatement(expression))
     }
 
@@ -268,7 +265,6 @@ impl<'a> Parser<'a> {
 
     fn call(&mut self) -> ParserResult<Expression> {
         let mut expression = self.primary()?;
-        println!("Call: {:?}", expression);
 
         loop {
             if self.matches(TokenType::LeftParen) {
@@ -312,7 +308,7 @@ impl<'a> Parser<'a> {
 
     fn primary(&mut self) -> ParserResult<Expression> {
         let token = unwrap_result(self.peek())?.token_type.to_owned();
-        match token {
+        let result = match token {
             TokenType::Integer(value) => {
                 Ok(Expression::Literal(Literal::Integer(ast::IntegerLiteral(value))))
             },
@@ -323,6 +319,14 @@ impl<'a> Parser<'a> {
                 Ok(Expression::Literal(Literal::Boolean(ast::BooleanLiteral(value))))
             },
             _ => error!(format!("Expected expression, received '{:?}'", token)),
+        };
+
+        match result {
+            Ok(expression) => {
+                self.advance();
+                Ok(expression)
+            },
+            Err(err) => Err(err),
         }
     }
 
