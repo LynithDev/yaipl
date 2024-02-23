@@ -107,7 +107,7 @@ create_struct!(Identifier, String);
 create_struct!(BinaryExpression, Box<Expression>, Operator, Box<Expression>);
 create_struct!(LogicalExpression, Box<Expression>, LogicalOperator, Box<Expression>);
 create_struct!(UnaryExpression, Operator, Box<Expression>);
-create_struct!(CallExpression, Box<Expression>, Vec<Expression>);
+create_struct!(FunctionCallExpression, Box<Expression>, Vec<Expression>);
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
@@ -118,7 +118,7 @@ pub enum Expression {
     BinaryExpr(BinaryExpression),
     LogicalExpr(LogicalExpression),
     UnaryExpr(UnaryExpression),
-    CallExpr(CallExpression)
+    FunctionCallExpr(FunctionCallExpression),
 }
 
 pub type Program = Vec<Node>;

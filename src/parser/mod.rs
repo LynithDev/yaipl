@@ -38,7 +38,8 @@ impl<'a> Parser<'a> {
         let mut statements: Vec<Node> = Vec::new();
 
         while !self.is_at_end() {
-            statements.push(self.declaration()?);
+            let statement = self.declaration()?;
+            statements.push(statement);
         }
 
         Ok(statements)
@@ -324,8 +325,8 @@ impl<'a> Parser<'a> {
             }),
         };
 
-        Ok(Expression::CallExpr(
-            ast::CallExpression(
+        Ok(Expression::FunctionCallExpr(
+            ast::FunctionCallExpression(
                 Box::new(callee),
                 arguments,
             )
@@ -352,7 +353,15 @@ impl<'a> Parser<'a> {
                 let value = value.get_value().parse::<i8>()?;
                 Expression::LiteralExpr(Literal::Boolean(ast::BooleanLiteral(value)))
             },
-            _ => error!(format!("Expected literal, received '{:?}'", token.token_type)),
+            TokenType::String => {
+                let value = value.get_value();
+                Expression::LiteralExpr(Literal::String(ast::StringLiteral(value)))
+            },
+            TokenType::Symbol => {
+                let value = value.get_value();
+                Expression::IdentifierExpr(ast::Identifier(value))
+            },
+            _ => error!(format!("Expected expression, received '{:?}'", token.token_type)),
         };
         
         self.advance();

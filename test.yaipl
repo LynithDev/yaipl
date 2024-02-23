@@ -1,1 +1,2 @@
-my_var = 5 + 5
+my_var = 3
+return my_var + 5

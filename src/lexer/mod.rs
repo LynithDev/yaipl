@@ -176,16 +176,11 @@ impl Lexer {
             };
             
             for token in matched_tokens.iter().rev() {
-                // Remove duplicate EOL
+                // Remove duplicate end of lines
                 if let Some(last) = self.tokens.last() {
-                    match last.token_type {
-                        TokenType::EndOfLine => {
-                            if token == last {
-                                continue;
-                            }
-                        },
-                        _ => {}
-                    };
+                    if last.token_type == TokenType::EndOfLine && token.token_type == TokenType::EndOfLine {
+                        continue;
+                    }
                 }
     
                 self.tokens.push(token.to_owned());
