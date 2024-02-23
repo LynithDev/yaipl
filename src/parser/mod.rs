@@ -335,30 +335,33 @@ impl<'a> Parser<'a> {
 
     fn primary(&mut self) -> ParserResult<Expression> {
         let token = unwrap_result(self.peek())?.to_owned();
-        let value = match unwrap_result(token.value) {
-            Ok(value) => value,
-            Err(_) => error!("Token value is none"),
-        };
+        let value = token.value;
 
         let result = match token.token_type {
             TokenType::Integer => {
-                let value = value.get_value().parse::<i32>()?;
+                let value = unwrap_result(value)?.get_value().parse::<i32>()?;
                 Expression::LiteralExpr(Literal::Integer(ast::IntegerLiteral(value)))
             },
             TokenType::Float => {
-                let value = value.get_value().parse::<f32>()?;
+                let value = unwrap_result(value)?.get_value().parse::<f32>()?;
                 Expression::LiteralExpr(Literal::Float(ast::FloatLiteral(value)))
             },
             TokenType::Boolean => {
-                let value = value.get_value().parse::<i8>()?;
+                let value = unwrap_result(value)?.get_value().parse::<i8>()?;
                 Expression::LiteralExpr(Literal::Boolean(ast::BooleanLiteral(value)))
             },
             TokenType::String => {
-                let value = value.get_value();
+                let value = unwrap_result(value)?.get_value();
                 Expression::LiteralExpr(Literal::String(ast::StringLiteral(value)))
             },
+            TokenType::LeftParen => {
+                self.advance();
+                let expression = self.expression()?;
+                self.consume(TokenType::RightParen)?;
+                return Ok(Expression::GroupExpr(Box::from(expression)));
+            }
             TokenType::Symbol => {
-                let value = value.get_value();
+                let value = unwrap_result(value)?.get_value();
                 Expression::IdentifierExpr(ast::Identifier(value))
             },
             _ => error!(format!("Expected expression, received '{:?}'", token.token_type)),
