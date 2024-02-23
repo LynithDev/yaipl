@@ -34,7 +34,7 @@ fn parse_file(path: &String) -> Result<(), Box<dyn ErrorList>> {
 
     let mut lexer = Lexer::from(&content);
     let tokens = lexer.tokenize()?;
-    println!("----\nTokens\n{}\nTokens\n----\n", Lexer::tokens_to_string(&tokens));
+    println!("----\nTokens\n{:#?}\nTokens\n----\n", &tokens);
 
     let mut parser = Parser::from(&tokens);
     let ast = parser.parse()?;

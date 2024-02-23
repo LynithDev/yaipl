@@ -93,8 +93,15 @@ macro_rules! create_error_list {
 
             fn print(&self) -> String {
                 match self {
-                    $name::Error(err) => format!("{:#?}", err),
-                    $name::String(err) => err.to_string(),
+                    $name::Error(err) => {
+                        let result = format!("{:#?}", err);
+                        if result.starts_with("\"") && result.ends_with("\"") {
+                            format!("{}", err)
+                        } else {
+                            result
+                        }
+                    },
+                    $name::String(err) => err.to_owned(),
                     $($name::$error(err) => format!("{:#?}", err)),*
                 }
             }
@@ -102,7 +109,7 @@ macro_rules! create_error_list {
             fn error_name(&self) -> String {
                 match self {
                     $name::Error(err) => format!("{:#?}", err).to_string().split_whitespace().next().unwrap_or("").to_string(),
-                    $name::String(err) => err.to_string(),
+                    $name::String(_) => "None".to_string(),
                     $($name::$error(_) => stringify!($name).to_string()),*
                 }
             }

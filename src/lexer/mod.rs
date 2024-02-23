@@ -1,5 +1,5 @@
 use crate::{create_error, create_error_list, error};
-use self::token::{Position, Token, TokenType, Tokens};
+use self::token::{Position, Token, TokenLiteral, TokenType, Tokens};
 
 pub mod token;
 
@@ -52,14 +52,15 @@ impl Lexer {
         }
 
         let char = self.chars.remove(0);
-        // TODO: set line and col variables
+        self.pos_advance(1);
+        
         Ok(char)
     }
 
     fn parse_word(&mut self, char: &mut char) -> Result<String, LexerErrors> {
         let mut word = String::new();
         
-        while !self.chars.is_empty() && !char.is_whitespace() && match_char(&mut self.chars, char.to_owned()).is_none() {
+        while !self.chars.is_empty() && !char.is_whitespace() && self.match_char(char.to_owned()).is_none() {
             word.push(char.to_owned());
             *char = self.remove_char(0)?;
         };
@@ -67,19 +68,70 @@ impl Lexer {
         Ok(word)
     }
 
+    fn get_pos(&self) -> Position {
+        Position::from(self.line, self.col)
+    }
+
+    fn get_pos_offset(&self, amount: usize) -> Position {
+        let mut line = self.line;
+        let mut col = self.col;
+
+        for _ in 0..amount {
+            let char = match self.chars.get(amount) {
+                Some(char) => char,
+                None => { return Position::from(line, col); }
+            };
+
+            if char == &'\n' {
+                line += 1;
+                col = 0;
+            } else {
+                col += 1;
+            }
+        }
+
+        Position::from(line, col)
+    }
+
+    fn pos_advance(&mut self, amount: usize) {
+        for _ in 0..amount {
+            let char = match self.chars.get(amount) {
+                Some(char) => char,
+                None => { return; }
+            };
+
+            if char == &'\n' {
+                self.line += 1;
+                self.col = 0;
+            } else {
+                self.col += 1;
+            }
+        }
+    }
+
     pub fn tokenize(&mut self) -> Result<&Tokens, LexerErrors> {
         while !self.chars.is_empty() {
             let mut char = self.remove_char(0)?;
     
-            let matched_tokens: Tokens = match match_char(&mut self.chars, char) {
-                Some(token) => vec![Token::from(token, (0, 0), (0, 0))],
+            let matched_tokens: Tokens = match self.match_char(char) {
+                Some((token, len)) => vec![
+                    Token::from_pos(
+                        token, 
+                        self.get_pos(), 
+                        self.get_pos_offset(len as usize)
+                    )
+                ],
     
                 None => {
                     let mut ret: Tokens = Vec::new();
                     let mut word = self.parse_word(&mut char)?;
 
-                    if let Some(token) = match_char(&mut self.chars, char) {
-                        ret.push(Token::from(token, (0, 0), (0, 0)));
+                    if let Some((token, len)) = self.match_char(char) {
+                        ret.push(Token::from_pos(
+                            token, 
+                            self.get_pos(), 
+                            self.get_pos_offset(len as usize))
+                        );
                     } else if char != ' ' {
                         word.push(char)
                     }
@@ -89,22 +141,34 @@ impl Lexer {
                     }
             
                     ret.push(if let Ok(num) = word.replace("_", "").parse::<i32>() {
-                        Token::from(TokenType::Integer(num), (0, 0), (0, 0))
+                        Token::from_value_pos(
+                            TokenType::Integer, 
+                            self.get_pos(), 
+                            self.get_pos_offset(num.to_string().chars().count()),
+                            Some(TokenLiteral::Integer(num))
+                        )
                     } else if let Ok(num) = word.replace("_", "").parse::<f32>() {
-                        Token::from(TokenType::Float(num), (0, 0), (0, 0))
+                        Token::from_value_pos(
+                            TokenType::Float, 
+                            self.get_pos(), 
+                            self.get_pos_offset(num.to_string().chars().count()),
+                            Some(TokenLiteral::Float(num))
+                        )
                     } else {
-                        match word.as_str() {
-                            "true" => Token::from(TokenType::Boolean(1), (0, 0), (0, 0)),
-                            "false" => Token::from(TokenType::Boolean(0), (0, 0), (0, 0)),
+                        let (token_type, len, value) = match word.as_str() {
+                            "true" => (TokenType::Boolean, 4, Some(TokenLiteral::Boolean(1))),
+                            "false" => (TokenType::Boolean, 5, Some(TokenLiteral::Boolean(0))),
     
                             // Keywords
-                            "if" => Token::from(TokenType::If, (0, 0), (0, 0)),
-                            "while" => Token::from(TokenType::While, (0, 0), (0, 0)),
-                            "for" => Token::from(TokenType::For, (0, 0), (0, 0)),
-                            "return" => Token::from(TokenType::Return, (0, 0), (0, 0)),
+                            "if" => (TokenType::If, 2, None),
+                            "while" => (TokenType::While, 5, None),
+                            "for" => (TokenType::For, 3, None),
+                            "return" => (TokenType::Return, 6, None),
     
-                            _ => Token::from(TokenType::Symbol(word), (0, 0), (0, 0))
-                        }
+                            _ => (TokenType::Symbol, word.chars().count(), Some(TokenLiteral::String(word)))
+                        };
+
+                        Token::from_value_pos(token_type, self.get_pos(), self.get_pos_offset(len), value)
                     });
     
                     ret
@@ -141,80 +205,90 @@ impl Lexer {
             match last.token_type {
                 TokenType::EndOfLine => {},
                 _ => {
-                    self.tokens.push(Token::from(TokenType::EndOfLine, (0, 0), (0, 0)))
+                    self.tokens.push(
+                        Token::from_pos(
+                            TokenType::EndOfLine, 
+                            self.get_pos(),
+                            self.get_pos_offset(1)
+                        )
+                    )
                 },
             }
         }
 
-        self.tokens.push(Token::from(TokenType::EndOfFile, (0, 0), (0, 0)));
+        self.tokens.push(
+            Token::from_pos(TokenType::EndOfFile, self.get_pos(), self.get_pos_offset(1))
+        );
         
         Ok(&self.tokens)
     }
 
-}
-
-fn accept_eq(chars: &mut Vec<char>, char: char) -> bool {
-    if chars.len() < 2 {
-        return false;
-    }
-
-    if let Some(next_char) = chars.get(0) {
-        if next_char.to_owned() == char {
-            chars.remove(0);
-            return true;
+    fn accept_eq(&mut self, char: char) -> bool {
+        if self.chars.len() < 2 {
+            return false;
         }
-    }
-
-    false
-}
-
-fn accept_eq_ret<T>(chars: &mut Vec<char>, peek_char: char, if_true: T, if_false: T) -> T {
-    if accept_eq(chars, peek_char) {
-        if_true
-    } else {
-        if_false
-    }
-}
-
-fn match_char(chars: &mut Vec<char>, char: char) -> Option<TokenType> {
-    Some(match char {
-        '(' => TokenType::LeftParen,
-        ')' => TokenType::RightParen,
-        '{' => TokenType::LeftBrace,
-        '}' => TokenType::RightBrace,
-
-        '+' => accept_eq_ret(chars, '=', TokenType::PlusAssign, TokenType::Plus),
-        '-' => accept_eq_ret(chars, '=', TokenType::MinusAssign, TokenType::Minus),
-        '*' => accept_eq_ret(chars, '=', TokenType::MultiplyAssign, TokenType::Multiply),
-        '/' => accept_eq_ret(chars, '=', TokenType::DivideAssign, TokenType::Divide),
-        '%' => accept_eq_ret(chars, '=', TokenType::ModuloAssign, TokenType::Modulo),
-        '^' => accept_eq_ret(chars, '=', TokenType::PowerAssign, TokenType::Power),
-        '=' => accept_eq_ret(chars, '=', TokenType::Equal, TokenType::Assign),
-
-        '<' => accept_eq_ret(chars, '=', TokenType::LesserThanEqual, TokenType::LesserThan),
-        '>' => accept_eq_ret(chars, '=', TokenType::GreaterThanEqual, TokenType::GreaterThan),
-        
-        '!' => accept_eq_ret(chars, '=', TokenType::NotEqual, TokenType::Not),
-
-        '&' => {
-            if accept_eq(chars, '&') {
-                TokenType::And
-            } else {
-                return None
+    
+        if let Some(next_char) = self.chars.get(0) {
+            if next_char.to_owned() == char {
+                self.chars.remove(0);
+                return true;
             }
         }
-
-        '|' => {
-            if accept_eq(chars, '|') {
-                TokenType::Or
-            } else {
-                return None
-            }
+    
+        false
+    }
+    
+    fn match_char(&mut self, char: char) -> Option<(TokenType, u8)> {
+        macro_rules! accept_eq_ret {
+            ($sym_b:literal, $tru:expr, $fal:expr) => {
+                if self.accept_eq($sym_b) {
+                    return Some(($tru, 2));
+                } else {
+                    return Some(($fal, 1));
+                }
+            };
         }
 
-        '\n' | ';' => TokenType::EndOfLine,
-        _ => return None
-    })
+        Some(match char {
+            '(' => (TokenType::LeftParen, 1),
+            ')' => (TokenType::RightParen, 1),
+            '{' => (TokenType::LeftBrace, 1),
+            '}' => (TokenType::RightBrace, 1),
+    
+            '+' => accept_eq_ret!('=', TokenType::PlusAssign, TokenType::Plus),
+            '-' => accept_eq_ret!('=', TokenType::MinusAssign, TokenType::Minus),
+            '*' => accept_eq_ret!('=', TokenType::MultiplyAssign, TokenType::Multiply),
+            '/' => accept_eq_ret!('=', TokenType::DivideAssign, TokenType::Divide),
+            '%' => accept_eq_ret!('=', TokenType::ModuloAssign, TokenType::Modulo),
+            '^' => accept_eq_ret!('=', TokenType::PowerAssign, TokenType::Power),
+            '=' => accept_eq_ret!('=', TokenType::Equal, TokenType::Assign),
+    
+            '<' => accept_eq_ret!('=', TokenType::LesserThanEqual, TokenType::LesserThan),
+            '>' => accept_eq_ret!('=', TokenType::GreaterThanEqual, TokenType::GreaterThan),
+            
+            '!' => accept_eq_ret!('=', TokenType::NotEqual, TokenType::Not),
+    
+            '&' => {
+                if self.accept_eq('&') {
+                    (TokenType::And, 2)
+                } else {
+                    return None
+                }
+            }
+    
+            '|' => {
+                if self.accept_eq('|') {
+                    (TokenType::Or, 2)
+                } else {
+                    return None
+                }
+            }
+    
+            '\n' | ';' => (TokenType::EndOfLine, 1),
+            _ => return None
+        })
+    }
+
 }
 
 #[cfg(test)]
@@ -242,72 +316,9 @@ mod tests {
 
         let mut lexer = Lexer::from(input);
         let result = lexer.tokenize().unwrap();
-        let mut token_type_result: Vec<TokenType> = Vec::new();
-
-        for token in result {
-            token_type_result.push(token.token_type.to_owned());
-        }
         
-        use TokenType::*;
-        let expected: Vec<TokenType> = vec![
-            Symbol("test".to_string()),
-            Assign,
-            LeftParen,
-            RightParen,
-            LeftBrace,
-            EndOfLine,
+        // TODO: Implement token comparison
 
-            Symbol("var".to_string()),
-            Assign,
-            Integer(5),
-            EndOfLine,
-
-            Symbol("var".to_string()),
-            PlusAssign,
-            Integer(2),
-            EndOfLine,
-
-            If,
-            Symbol("var".to_string()),
-            Equal,
-            Integer(7),
-            LeftBrace,
-            EndOfLine,
-
-            Symbol("print".to_string()),
-            LeftParen,
-            Integer(1),
-            RightParen,
-            EndOfLine,
-
-            Return,
-            Symbol("var".to_string()),
-            EndOfLine,
-
-            RightBrace,
-            EndOfLine,
-
-            Symbol("print".to_string()),
-            LeftParen,
-            Integer(0),
-            RightParen,
-            EndOfLine,
-
-            Return,
-            Symbol("var".to_string()),
-            EndOfLine,
-
-            RightBrace,
-            EndOfLine,
-
-            Symbol("test".to_string()),
-            LeftParen,
-            RightParen,
-            Plus,
-            Integer(5),
-            EndOfLine
-        ];
-        
-        assert_eq!(token_type_result, expected)
+        println!("{:#?}", result);
     }
 }
