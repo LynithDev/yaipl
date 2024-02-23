@@ -62,6 +62,8 @@ pub enum TokenType {
     PowerAssign,
     Assign,
 
+    Or,
+    And,
     Not,
     Equal,
     NotEqual,
@@ -83,44 +85,9 @@ pub enum TokenType {
     RightParen,
     RightBrace,
     EndOfLine,
+    EndOfFile,
     Symbol(String),
+    Comma,
 
     Unknown
-}
-
-impl TokenType {
-    pub fn len(&self) -> usize {
-        use TokenType::*;
-        match self {
-            Integer(n) => n.to_string().len(),
-            Float(n) => n.to_string().len(),
-            Boolean(b) => b.to_string().len(),
-            String(s) => s.chars().count(),
-            List(list) => {
-                let mut total: usize = 0;
-                for token in list {
-                    total += token.len();
-                }
-                total
-            },
-
-            Plus | Minus | Divide | Multiply | Modulo | Power
-            | Not | Assign | LesserThan | GreaterThan => 1,
-
-            PlusAssign | MinusAssign | DivideAssign 
-            | MultiplyAssign | ModuloAssign 
-            | PowerAssign | Equal | NotEqual
-            | GreaterThanEqual | LesserThanEqual => 2,
-
-            If => 2,
-            While => 5,
-            For => 3,
-            Return => 6,
-
-            LeftParen | LeftBrace | RightParen | RightBrace | EndOfLine => 1,
-            
-            Symbol(s) => s.chars().count(),
-            Unknown => 0,
-        }
-    }
 }

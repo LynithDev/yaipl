@@ -1,13 +1,24 @@
-use crate::{create_error, error, utils::DynamicError};
+use crate::{create_error, create_error_list, error};
 use self::token::{Position, Token, TokenType, Tokens};
 
 pub mod token;
 
+/* ERRORS */
 create_error!(LexerError, {
     token_type: Option<TokenType>,
     pos: Position
 });
 
+create_error!(LexerOutOfBounds, {});
+
+create_error_list!(LexerErrors, {
+    LexerError,
+    LexerOutOfBounds
+});
+/* END ERRORS */
+
+// TODO: Implement position
+#[allow(dead_code)]
 pub struct Lexer {
     pub tokens: Tokens,
     chars: Vec<char>,
@@ -16,7 +27,6 @@ pub struct Lexer {
 }
 
 impl Lexer {
-
     pub fn from(input: &str) -> Lexer {
         Lexer {
             tokens: Vec::new(),
@@ -26,7 +36,17 @@ impl Lexer {
         }
     }
 
-    fn remove_char(&mut self, index: usize) -> Result<char, DynamicError> {
+    pub fn tokens_to_string(tokens: &Tokens) -> String {
+        let mut builder: String = String::new();
+
+        for token in tokens {
+            builder += format!("    {:?},\n", token.token_type.to_owned()).as_str()
+        };
+
+        format!("[\n{}]", builder)
+    }
+
+    fn remove_char(&mut self, index: usize) -> Result<char, LexerErrors> {
         if index > self.chars.len() {
             error!("Index out of bounds")
         }
@@ -36,7 +56,7 @@ impl Lexer {
         Ok(char)
     }
 
-    fn parse_word(&mut self, char: &mut char) -> Result<String, DynamicError> {
+    fn parse_word(&mut self, char: &mut char) -> Result<String, LexerErrors> {
         let mut word = String::new();
         
         while !self.chars.is_empty() && !char.is_whitespace() && match_char(&mut self.chars, char.to_owned()).is_none() {
@@ -47,7 +67,7 @@ impl Lexer {
         Ok(word)
     }
 
-    pub fn tokenize(&mut self) -> Result<&Tokens, DynamicError> {
+    pub fn tokenize(&mut self) -> Result<&Tokens, LexerErrors> {
         while !self.chars.is_empty() {
             let mut char = self.remove_char(0)?;
     
@@ -110,18 +130,18 @@ impl Lexer {
     
         if let Some(first) = self.tokens.first() {
             match first.token_type {
-                _ => {}
                 TokenType::EndOfLine => {
                     self.tokens.remove(0);
                 },
+                _ => {}
             }
         }
     
         if let Some(last) = self.tokens.last() {
             match last.token_type {
-                TokenType::EndOfLine => {},
+                TokenType::EndOfFile => {},
                 _ => {
-                    self.tokens.push(Token::from(TokenType::EndOfLine, (0, 0), (0, 0)))
+                    self.tokens.push(Token::from(TokenType::EndOfFile, (0, 0), (0, 0)))
                 },
             }
         }
@@ -173,6 +193,22 @@ fn match_char(chars: &mut Vec<char>, char: char) -> Option<TokenType> {
         '>' => accept_eq_ret(chars, '=', TokenType::GreaterThanEqual, TokenType::GreaterThan),
         
         '!' => accept_eq_ret(chars, '=', TokenType::NotEqual, TokenType::Not),
+
+        '&' => {
+            if accept_eq(chars, '&') {
+                TokenType::And
+            } else {
+                return None
+            }
+        }
+
+        '|' => {
+            if accept_eq(chars, '|') {
+                TokenType::Or
+            } else {
+                return None
+            }
+        }
 
         '\n' | ';' => TokenType::EndOfLine,
         _ => return None

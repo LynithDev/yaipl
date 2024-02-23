@@ -1,6 +1,6 @@
-use std::{error::Error, fs, process::exit};
+use std::{fs, process::exit};
 
-use another_interpreted_language::{lexer::Lexer, parser::parse_tokens};
+use another_interpreted_language::{errors::ErrorList, lexer::Lexer, parser::Parser};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -23,7 +23,7 @@ fn main() {
     }
 }
 
-fn parse_file(path: &String) -> Result<(), Box<dyn Error>> {
+fn parse_file(path: &String) -> Result<(), Box<dyn ErrorList>> {
     let content = match fs::read_to_string(path) {
         Ok(text) => text,
         Err(err) => {
@@ -33,9 +33,11 @@ fn parse_file(path: &String) -> Result<(), Box<dyn Error>> {
     };
 
     let mut lexer = Lexer::from(&content);
-    let mut tokens = lexer.tokenize()?;
-    println!("----\nTokens\n{:#?}\nTokens\n----\n", tokens);
-    let ast = parse_tokens(&mut tokens);
+    let tokens = lexer.tokenize()?;
+    println!("----\nTokens\n{}\nTokens\n----\n", Lexer::tokens_to_string(&tokens));
+
+    let mut parser = Parser::from(&tokens);
+    let ast = parser.parse()?;
     println!("\n----\nProgram\n{:#?}\nProgram\n----", ast);
 
     Ok(())
