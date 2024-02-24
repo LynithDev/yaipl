@@ -50,44 +50,6 @@ impl Lexer {
         format!("[\n{}]", builder)
     }
 
-    fn remove_char(&mut self, index: usize) -> Result<char, LexerErrors> {
-        if index > self.chars.len() {
-            error!("Index out of bounds")
-        }
-
-        self.pos_advance(1);
-        let char = self.chars.remove(0);
-        
-        Ok(char)
-    }
-
-    fn parse_word(&mut self, char: &mut char) -> Result<String, LexerErrors> {
-        let mut word = String::new();
-
-        while !self.chars.is_empty() && !char.is_whitespace() && self.match_char(char.to_owned()).is_none() {
-            word.push(char.to_owned());
-            *char = self.remove_char(0)?;
-        };
-
-        Ok(word)
-    }
-
-    fn parse_string(&mut self, char: &mut char) -> Result<String, LexerErrors> {
-        let mut builder = String::new();
-        *char = self.remove_char(0)?;
-
-        while !self.chars.is_empty() {
-            if !builder.ends_with("\\") && char == &'"' {
-                break;
-            }
-
-            builder.push(char.to_owned());
-            *char = self.remove_char(0)?;
-        };
-
-        Ok(builder)
-    }
-
     pub fn tokenize(&mut self) -> Result<&Tokens, LexerErrors> {
         while !self.chars.is_empty() {
             let mut char = self.remove_char(0)?;
@@ -116,6 +78,20 @@ impl Lexer {
                         ));
                     } else {
                         let mut word = self.parse_word(&mut char)?;
+                        
+                        if self.is_comment(&char) {
+                            while !self.chars.is_empty() && char != '\n' {
+                                char = self.remove_char(0)?;
+                            }
+                            
+                            self.tokens.push(Token::from_pos(
+                                TokenType::EndOfLine, 
+                                self.get_pos(), 
+                                self.get_pos_offset(1)
+                            ));
+                            continue;
+                        }
+                        
                         if let Some((token, len)) = self.match_char(char) {
                             ret.push(Token::from_pos(
                                 token, 
@@ -209,6 +185,48 @@ impl Lexer {
         );
         
         Ok(&self.tokens)
+    }
+
+    fn remove_char(&mut self, index: usize) -> Result<char, LexerErrors> {
+        if index > self.chars.len() {
+            error!("Index out of bounds")
+        }
+
+        self.pos_advance(1);
+        let char = self.chars.remove(0);
+        
+        Ok(char)
+    }
+
+    fn parse_word(&mut self, char: &mut char) -> Result<String, LexerErrors> {
+        let mut word = String::new();
+
+        while !self.chars.is_empty() && !char.is_whitespace() && !self.is_comment(&char) && self.match_char(char.to_owned()).is_none() {
+            word.push(char.to_owned());
+            *char = self.remove_char(0)?;
+        };
+
+        Ok(word)
+    }
+
+    fn is_comment(&self, char: &char) -> bool {
+        char == &'#'
+    }
+
+    fn parse_string(&mut self, char: &mut char) -> Result<String, LexerErrors> {
+        let mut builder = String::new();
+        *char = self.remove_char(0)?;
+
+        while !self.chars.is_empty() {
+            if !builder.ends_with("\\") && char == &'"' {
+                break;
+            }
+
+            builder.push(char.to_owned());
+            *char = self.remove_char(0)?;
+        };
+
+        Ok(builder)
     }
 
     fn get_pos(&self) -> Position {
