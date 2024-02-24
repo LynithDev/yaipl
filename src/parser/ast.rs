@@ -133,6 +133,7 @@ create_struct!(EmptyStatement);
 create_struct!(ExpressionStatement, Expression);
 create_struct!(ReturnStatement, Option<Expression>);
 create_struct!(IfStatement, Expression, Box<BlockStatement>);
+create_struct!(WhileStatement, Expression, Box<BlockStatement>);
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Node {
@@ -142,4 +143,5 @@ pub enum Node {
     EmptyStatement(EmptyStatement),
     ReturnStatement(ReturnStatement),
     IfStatement(IfStatement),
+    WhileStatement(WhileStatement),
 }

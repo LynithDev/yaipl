@@ -168,6 +168,10 @@ impl<'a> Parser<'a> {
             return self.if_statement();
         }
 
+        if self.matches(TokenType::While) {
+            return self.while_statement();
+        }
+
         if self.matches(TokenType::Return) {
             return self.return_statement();
         }
@@ -181,6 +185,18 @@ impl<'a> Parser<'a> {
 
         Ok(Node::IfStatement(
             ast::IfStatement(
+                condition,
+                Box::from(body),
+            )
+        ))
+    }
+
+    fn while_statement(&mut self) -> ParserResult<Node> {
+        let condition = self.expression()?;
+        let body = self.block()?;
+
+        Ok(Node::WhileStatement(
+            ast::WhileStatement(
                 condition,
                 Box::from(body),
             )

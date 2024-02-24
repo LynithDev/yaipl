@@ -1,4 +1,4 @@
 test = true
-if test == true {
+while test <= 1 {
     print("test is true")
 }
