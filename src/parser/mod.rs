@@ -76,6 +76,8 @@ impl<'a> Parser<'a> {
             _ => error!("Expected identifier, found something else"),
         };
 
+        // println!("{:#?}", self.primary());
+
         let initializer = self.expression()?;
         self.consume(TokenType::EndOfLine)?;
 
@@ -307,11 +309,11 @@ impl<'a> Parser<'a> {
     fn call(&mut self) -> ParserResult<Expression> {
         if let Some(symbol) = self.previous() {
             let symbol = symbol.to_owned();
-            if self.matches(TokenType::LeftParen) {
+            if symbol.token_type == TokenType::Symbol && self.matches(TokenType::LeftParen) {
                 return Ok(self.finish_call(symbol.to_owned())?);
             }
         }
-
+        
         let expression = self.primary()?;
         Ok(expression)
     }
