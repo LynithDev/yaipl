@@ -1,24 +1,34 @@
 use std::error::Error;
 
-use crate::{create_error, create_error_list, error, lexer::token::{Token, TokenLiteral, TokenType, Tokens}, parser::ast::Literal, utils::unwrap_result};
+use crate::{create_error, create_error_list, error, errors::ErrorWithPosition, lexer::token::{Position, Token, TokenLiteral, TokenType, Tokens}, parser::ast::Literal, utils::unwrap_result};
 
 use self::ast::{op_token_to_arithmetic, op_token_to_logical, EmptyStatement, Expression, ExpressionStatement, Node};
 
 pub mod ast;
 
+create_error!(ParserOutOfBounds, {});
 create_error!(TokenMismatch, {
     expected: Vec<TokenType>,
     found: TokenType,
+    position: Position
 });
+
+impl ErrorWithPosition for TokenMismatch {
+    fn position(&self) -> Position {
+        self.position.to_owned()
+    }
+}
 
 create_error_list!(ParserErrors, {
     TokenMismatch,
+    ParserOutOfBounds
 });
 
 type ParserResult<T> = Result<T, Box<dyn Error>>;
 
 pub struct Parser<'a> {
     pub tokens: &'a Tokens,
+    warnings: Vec<Box<dyn Error>>,
     current: usize,
 }
 
@@ -27,6 +37,7 @@ impl<'a> Parser<'a> {
         Self {
             tokens,
             current: 0,
+            warnings: Vec::new(),
         }
     }
 
@@ -96,7 +107,7 @@ impl<'a> Parser<'a> {
         };
 
         if return_value.is_some() {
-            // self.consume(TokenType::EndOfLine)?;
+            self.consume(TokenType::EndOfLine)?;
         }
 
         Ok(Node::ReturnStatement(ast::ReturnStatement(
@@ -175,6 +186,7 @@ impl<'a> Parser<'a> {
                     err: format!("Expected token of type '{:?}' or '{:?}', found {:?}", TokenType::Equal, TokenType::NotEqual, operator.token_type),
                     expected: vec![TokenType::Equal, TokenType::NotEqual],
                     found: operator.token_type,
+                    position: operator.start,
                 }),
                 Some(op) => {
                     expression = Expression::BinaryExpr(ast::BinaryExpression(
@@ -263,6 +275,7 @@ impl<'a> Parser<'a> {
                     err: "Expected token of type Minus or Not".to_owned(),
                     expected: vec![TokenType::Minus, TokenType::Not],
                     found: operator.token_type.to_owned(),
+                    position: operator.start,
                 })
             };
 
@@ -283,6 +296,7 @@ impl<'a> Parser<'a> {
                     err: "Expected token of type Arithmetic or Logical".to_owned(),
                     expected: vec![TokenType::Minus, TokenType::Not],
                     found: operator.token_type.to_owned(),
+                    position: operator.start,
                 })
             };
         }
@@ -291,46 +305,50 @@ impl<'a> Parser<'a> {
     }
 
     fn call(&mut self) -> ParserResult<Expression> {
-        let mut expression = self.primary()?;
-
-        loop {
+        if let Some(symbol) = self.previous() {
+            let symbol = symbol.to_owned();
             if self.matches(TokenType::LeftParen) {
-                expression = self.finish_call(expression)?;
-            } else {
-                break;
+                return Ok(self.finish_call(symbol.to_owned())?);
             }
         }
 
+        let expression = self.primary()?;
         Ok(expression)
     }
 
-    fn finish_call(&mut self, callee: Expression) -> ParserResult<Expression> {
+    fn finish_call(&mut self, symbol: Token) -> ParserResult<Expression> {
+        let name = match unwrap_result(symbol.value)? {
+            TokenLiteral::String(name) => name,
+            _ => error!(TokenMismatch {
+                err: "Expected identifier".to_owned(),
+                expected: vec![TokenType::String],
+                found: symbol.token_type.to_owned(),
+                position: symbol.start,
+            })
+        };
+
         let mut arguments: Vec<Expression> = Vec::new();
 
-        if !self.check(TokenType::RightParen) {
-            loop {
-                arguments.push(self.expression()?);
-                if !self.matches(TokenType::Comma) {
-                    break;
-                }
+        loop {
+            if self.matches(TokenType::RightParen) {
+                break;
+            }
+
+            arguments.push(self.expression()?);
+            println!("{:#?}", arguments);
+
+            if !self.matches(TokenType::Comma) {
+                self.consume(TokenType::RightParen)?;
+                break;
+            } else {
+                self.advance();
             }
         }
 
-        match self.consume(TokenType::RightParen) {
-            Ok(token) => token,
-            Err(_) => error!(TokenMismatch {
-                err: "Expected ) after arguments".to_owned(),
-                expected: vec![TokenType::RightParen],
-                found: unwrap_result(self.peek())?.token_type.to_owned(),
-            }),
-        };
-
-        Ok(Expression::FunctionCallExpr(
-            ast::FunctionCallExpression(
-                Box::new(callee),
-                arguments,
-            )
-        ))
+        Ok(Expression::FunctionCallExpr(ast::FunctionCallExpression(
+            ast::Identifier(name),
+            arguments
+        )))
     }
 
     fn primary(&mut self) -> ParserResult<Expression> {
@@ -354,17 +372,23 @@ impl<'a> Parser<'a> {
                 let value = unwrap_result(value)?.get_value();
                 Expression::LiteralExpr(Literal::String(ast::StringLiteral(value)))
             },
+            TokenType::Symbol => {
+                let value = unwrap_result(value)?.get_value();
+                Expression::IdentifierExpr(ast::Identifier(value))
+            }
             TokenType::LeftParen => {
                 self.advance();
                 let expression = self.expression()?;
                 self.consume(TokenType::RightParen)?;
                 return Ok(Expression::GroupExpr(Box::from(expression)));
-            }
-            TokenType::Symbol => {
-                let value = unwrap_result(value)?.get_value();
-                Expression::IdentifierExpr(ast::Identifier(value))
             },
-            _ => error!(format!("Expected expression, received '{:?}'", token.token_type)),
+            // _ => error!(format!("Expected expression, received '{:?}'", token.token_type)),
+            _ => error!(TokenMismatch {
+                err: format!("Expected expression, received '{:?}'", token.token_type),
+                expected: vec![TokenType::Integer, TokenType::Float, TokenType::Boolean, TokenType::String, TokenType::Symbol, TokenType::LeftParen],
+                found: token.token_type,
+                position: token.start,
+            })
         };
         
         self.advance();
@@ -378,9 +402,10 @@ impl<'a> Parser<'a> {
 
         let found = unwrap_result(self.peek())?.to_owned();
         error!(TokenMismatch {
-            err: format!("Expected token of type {:?}, found {:?}", token, found.token_type),
+            err: format!("Expected token of type {:?}, found {:?} at {}:{}", token, found.token_type, found.start.line + 1, found.start.col),
             expected: vec![token],
             found: found.token_type,
+            position: found.start,
         })
     }
 
@@ -435,7 +460,14 @@ impl<'a> Parser<'a> {
         self.tokens.get(self.current)
     }
 
-    fn previous(&self) -> Option<&Token> {
+    fn previous(&mut self) -> Option<&Token> {
+        if self.current == 0 {
+            self.warnings.push(ParserOutOfBounds {
+                err: "Attempted to access token at index -1".to_owned(),
+            }.into());
+            return None;
+        }
+        
         self.tokens.get(self.current - 1)
     }
 }

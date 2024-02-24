@@ -1,4 +1,4 @@
-use crate::{create_error, create_error_list, error};
+use crate::{create_error, create_error_list, error, errors::ErrorWithPosition};
 use self::token::{Position, Token, TokenLiteral, TokenType, Tokens};
 
 pub mod token;
@@ -9,6 +9,12 @@ create_error!(LexerError, {
     pos: Position
 });
 
+impl ErrorWithPosition for LexerError {
+    fn position(&self) -> Position {
+        self.pos.to_owned()
+    }
+}
+
 create_error!(LexerOutOfBounds, {});
 
 create_error_list!(LexerErrors, {
@@ -17,8 +23,6 @@ create_error_list!(LexerErrors, {
 });
 /* END ERRORS */
 
-// TODO: Implement position
-#[allow(dead_code)]
 pub struct Lexer {
     pub tokens: Tokens,
     chars: Vec<char>,
@@ -31,8 +35,8 @@ impl Lexer {
         Lexer {
             tokens: Vec::new(),
             chars: input.chars().collect::<Vec<char>>(),
-            line: 0,
-            col: 0
+            line: 1,
+            col: 1
         }
     }
 
@@ -245,6 +249,7 @@ impl Lexer {
         }
 
         Some(match char {
+            ',' => (TokenType::Comma, 1),
             '(' => (TokenType::LeftParen, 1),
             ')' => (TokenType::RightParen, 1),
             '{' => (TokenType::LeftBrace, 1),

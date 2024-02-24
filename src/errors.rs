@@ -1,5 +1,11 @@
 use std::fmt::Debug;
 
+use crate::lexer::token::Position;
+
+pub trait ErrorWithPosition {
+    fn position(&self) -> Position;
+}
+
 #[macro_export]
 macro_rules! create_error {
     ($name:ident, { $($field:ident : $field_type:ty),* $(,)? }) => {
@@ -19,6 +25,10 @@ macro_rules! create_error {
 
             pub fn from_str(err: &str, $($field : $field_type),*) -> Self {
                 $name::from(err.to_string(), $($field),*)
+            }
+
+            pub fn get_name(&self) -> String {
+                stringify!($name).to_string()
             }
         }
 
@@ -44,12 +54,29 @@ pub trait ErrorList {
     fn list_name(&self) -> String;
     fn print(&self) -> String;
     fn error_name(&self) -> String;
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 impl Debug for dyn ErrorList {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.print())
     }
+}
+
+#[macro_export]
+macro_rules! extract_type {
+    ($err:tt, $parent:tt, $name:tt, ($arg:ident) => $body:block) => {
+        if let Some($err) = $err.as_any().downcast_ref::<$parent>() {
+            match $err {
+                $parent::Error($err) => {
+                    if let Some($arg) = $err.downcast_ref::<$name>() {
+                        $body
+                    }
+                },
+                _ => {}
+            }
+        }
+    };
 }
 
 #[macro_export]
@@ -89,6 +116,10 @@ macro_rules! create_error_list {
         impl crate::errors::ErrorList for $name {
             fn list_name(&self) -> String {
                 return stringify!($name).to_string();
+            }
+
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
             }
 
             fn print(&self) -> String {
