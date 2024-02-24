@@ -1,6 +1,6 @@
-use std::{fs, io::{stdin, stdout, Read, Write}, process::exit};
+use std::{fs, io::{stdin, stdout, Write}, process::exit};
 
-use another_interpreted_language::{errors::ErrorList, extract_type, lexer::Lexer, parser::{Parser, ParserErrors, TokenMismatch}, utils::{BLUE, BOLD, MAGENTA, RED, RESET}};
+use another_interpreted_language::{errors::ErrorList, extract_type, lexer::{token::Tokens, Lexer}, parser::{ast::Node, Parser, ParserErrors, TokenMismatch}, utils::{BLUE, BOLD, GREEN, MAGENTA, RED, RESET, UNDERLINE}};
 
 pub const NAME: &str = "YAIPL";
 pub const NAME_LONG: &str = "Yet Another Interpreted Programming Language";
@@ -36,25 +36,44 @@ fn main() {
     }
 }
 
-pub fn repl() -> Result<(), Box<dyn ErrorList>> {
-    println!("{} - REPL Mode", NAME);
+pub fn repl() {
+    println!("{}{}{} - {}REPL Mode{}", 
+        format!("{}{}{}", GREEN, BOLD, UNDERLINE),
+        NAME,
+        RESET,
+        format!("{}{}", BLUE, BOLD), 
+        RESET
+    );
     
     let stdin = stdin();
     let mut buf = String::new();
 
     loop {
-        print!("{}{}>>>{} ", BOLD, BLUE, RESET);
+        print!("\n{}{}>>>{} ", BOLD, BLUE, RESET);
         let _ = stdout().flush();
         let _ = stdin.read_line(&mut buf);
 
-        let mut lexer = Lexer::from(&buf);
-        let tokens = lexer.tokenize()?;
-
-        let mut parser = Parser::from(&tokens);
-        let ast = parser.parse()?;
+        let (_, ast, _) = match interpret(buf.to_owned()) {
+            Ok(res) => res,
+            Err(err) => {
+                handle_errors(err, None);
+                buf.clear();
+                continue;
+            }
+        };
 
         println!("{:#?}", ast);
     }
+}
+
+fn interpret(input: String) -> Result<(Tokens, Node, ()), Box<dyn ErrorList>> {
+    let mut lexer = Lexer::from(&input);
+    let tokens = lexer.tokenize()?;
+
+    let mut parser = Parser::from(&tokens);
+    let ast = parser.parse()?;
+
+    Ok((tokens.to_owned(), ast, ()))
 }
 
 pub fn parse_file(path: &String) -> Result<(), Box<dyn ErrorList>> {
