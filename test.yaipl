@@ -2,6 +2,7 @@ index = 0
 while index < 10 {
     if index % 2 == 0 {
         print("Even")
+        break
     }
 
     index += 1

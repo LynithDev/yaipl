@@ -132,6 +132,8 @@ impl Lexer {
                                 "while" => (TokenType::While, None),
                                 "for" => (TokenType::For, None),
                                 "return" => (TokenType::Return, None),
+                                "break" => (TokenType::Break, None),
+                                "continue" => (TokenType::Continue, None),
         
                                 _ => (TokenType::Symbol, Some(TokenLiteral::String(word)))
                             };
