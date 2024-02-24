@@ -1,8 +1,1 @@
-test = () {
-    var = 5
-
-    print(0)
-    return var
-}
-
-test() + 5
+print("hello\" world")

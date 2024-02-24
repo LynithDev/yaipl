@@ -63,7 +63,7 @@ impl Lexer {
 
     fn parse_word(&mut self, char: &mut char) -> Result<String, LexerErrors> {
         let mut word = String::new();
-        
+
         while !self.chars.is_empty() && !char.is_whitespace() && self.match_char(char.to_owned()).is_none() {
             word.push(char.to_owned());
             *char = self.remove_char(0)?;
@@ -72,31 +72,20 @@ impl Lexer {
         Ok(word)
     }
 
-    fn get_pos(&self) -> Position {
-        Position::from(self.line, self.col)
-    }
+    fn parse_string(&mut self, char: &mut char) -> Result<String, LexerErrors> {
+        let mut builder = String::new();
+        *char = self.remove_char(0)?;
 
-    fn get_pos_offset(&self, amount: usize) -> Position {
-        let mut pos = self.get_pos();
-        pos.col += amount;
-        pos
-    }
-
-    fn pos_advance(&mut self, amount: usize) {
-        for _ in 0..amount {
-            if self.chars.is_empty() {
+        while !self.chars.is_empty() {
+            if !builder.ends_with("\\") && char == &'"' {
                 break;
             }
-            
-            let char = self.chars.get(0).unwrap_or(&' ');
 
-            if char == &'\n' {
-                self.line += 1;
-                self.col = 0;
-            } else {
-                self.col += 1;
-            }
-        }
+            builder.push(char.to_owned());
+            *char = self.remove_char(0)?;
+        };
+
+        Ok(builder)
     }
 
     pub fn tokenize(&mut self) -> Result<&Tokens, LexerErrors> {
@@ -115,53 +104,65 @@ impl Lexer {
                 None => {
                     let mut ret: Tokens = Vec::new();
                     let start: Position = self.get_pos();
-                    let mut word: String = self.parse_word(&mut char)?;
-                    let end: Position = self.get_pos();
 
-                    if let Some((token, len)) = self.match_char(char) {
-                        ret.push(Token::from_pos(
-                            token, 
-                            self.get_pos(), 
-                            self.get_pos_offset(len as usize))
-                        );
-                    } else if char != ' ' {
-                        word.push(char)
-                    }
-                    
-                    if word.is_empty() {
-                        continue;
-                    }
-            
-                    ret.push(if let Ok(num) = word.replace("_", "").parse::<i32>() {
-                        Token::from_value_pos(
-                            TokenType::Integer, 
-                            start,
-                            self.get_pos_offset(num.to_string().chars().count()),
-                            Some(TokenLiteral::Integer(num))
-                        )
-                    } else if let Ok(num) = word.replace("_", "").parse::<f32>() {
-                        Token::from_value_pos(
-                            TokenType::Float, 
+                    if char == '"' {
+                        let str = self.parse_string(&mut char)?;
+
+                        ret.push(Token::from_value_pos(
+                            TokenType::String, 
                             start, 
-                            self.get_pos_offset(num.to_string().chars().count()),
-                            Some(TokenLiteral::Float(num))
-                        )
+                            self.get_pos_offset(str.chars().count()),
+                            Some(TokenLiteral::String(str))
+                        ));
                     } else {
-                        let (token_type, value) = match word.as_str() {
-                            "true" => (TokenType::Boolean, Some(TokenLiteral::Boolean(1))),
-                            "false" => (TokenType::Boolean, Some(TokenLiteral::Boolean(0))),
-    
-                            // Keywords
-                            "if" => (TokenType::If, None),
-                            "while" => (TokenType::While, None),
-                            "for" => (TokenType::For, None),
-                            "return" => (TokenType::Return, None),
-    
-                            _ => (TokenType::Symbol, Some(TokenLiteral::String(word)))
-                        };
+                        let mut word = self.parse_word(&mut char)?;
+                        if let Some((token, len)) = self.match_char(char) {
+                            ret.push(Token::from_pos(
+                                token, 
+                                self.get_pos(), 
+                                self.get_pos_offset(len as usize))
+                            );
+                        } else if char != ' ' {
+                            word.push(char)
+                        }
+                        
+                        if word.is_empty() {
+                            continue;
+                        }
 
-                        Token::from_value_pos(token_type, start, end, value)
-                    });
+                        let end: Position = self.get_pos();
+            
+                        ret.push(if let Ok(num) = word.replace("_", "").parse::<i32>() {
+                            Token::from_value_pos(
+                                TokenType::Integer, 
+                                start,
+                                self.get_pos_offset(num.to_string().chars().count()),
+                                Some(TokenLiteral::Integer(num))
+                            )
+                        } else if let Ok(num) = word.replace("_", "").parse::<f32>() {
+                            Token::from_value_pos(
+                                TokenType::Float, 
+                                start, 
+                                self.get_pos_offset(num.to_string().chars().count()),
+                                Some(TokenLiteral::Float(num))
+                            )
+                        } else {
+                            let (token_type, value) = match word.as_str() {
+                                "true" => (TokenType::Boolean, Some(TokenLiteral::Boolean(1))),
+                                "false" => (TokenType::Boolean, Some(TokenLiteral::Boolean(0))),
+        
+                                // Keywords
+                                "if" => (TokenType::If, None),
+                                "while" => (TokenType::While, None),
+                                "for" => (TokenType::For, None),
+                                "return" => (TokenType::Return, None),
+        
+                                _ => (TokenType::Symbol, Some(TokenLiteral::String(word)))
+                            };
+
+                            Token::from_value_pos(token_type, start, end, value)
+                        });
+                    };
     
                     ret
                 }
@@ -208,6 +209,33 @@ impl Lexer {
         );
         
         Ok(&self.tokens)
+    }
+
+    fn get_pos(&self) -> Position {
+        Position::from(self.line, self.col)
+    }
+
+    fn get_pos_offset(&self, amount: usize) -> Position {
+        let mut pos = self.get_pos();
+        pos.col += amount;
+        pos
+    }
+
+    fn pos_advance(&mut self, amount: usize) {
+        for _ in 0..amount {
+            if self.chars.is_empty() {
+                break;
+            }
+            
+            let char = self.chars.get(0).unwrap_or(&' ');
+
+            if char == &'\n' {
+                self.line += 1;
+                self.col = 0;
+            } else {
+                self.col += 1;
+            }
+        }
     }
 
     fn accept_eq(&mut self, char: char) -> bool {
@@ -276,8 +304,8 @@ impl Lexer {
             _ => return None
         })
     }
-
 }
+
 
 #[cfg(test)]
 mod tests {

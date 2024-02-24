@@ -70,6 +70,8 @@ fn interpret(input: String) -> Result<(Tokens, Node, ()), Box<dyn ErrorList>> {
     let mut lexer = Lexer::from(&input);
     let tokens = lexer.tokenize()?;
 
+    println!("{:#?}", tokens);
+
     let mut parser = Parser::from(&tokens);
     let ast = parser.parse()?;
 
