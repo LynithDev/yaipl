@@ -8,6 +8,10 @@ impl Position {
     pub fn from(line: usize, col: usize) -> Self {
         Self { line, col }
     }
+
+    pub fn to_tuple(&self) -> (usize, usize) {
+        (self.line, self.col)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

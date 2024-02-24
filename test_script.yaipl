@@ -1,11 +1,5 @@
 test = () {
     var = 5
-    var += 2
-
-    if var == 7 {
-        print(1)
-        return var
-    }
 
     print(0)
     return var

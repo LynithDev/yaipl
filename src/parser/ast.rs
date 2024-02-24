@@ -118,8 +118,10 @@ pub enum Expression {
     BinaryExpr(BinaryExpression),
     LogicalExpr(LogicalExpression),
     UnaryExpr(UnaryExpression),
+    GroupExpr(Box<Expression>),
+    BlockExpr(BlockStatement),
     FunctionCallExpr(FunctionCallExpression),
-    GroupExpr(Box<Expression>)
+    FunctionDeclareExpr(Identifier, Vec<Identifier>, Box<BlockStatement>)
 }
 
 pub type Program = Vec<Node>;

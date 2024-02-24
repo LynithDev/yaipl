@@ -1,8 +1,8 @@
-use std::error::Error;
+use std::{error::Error, vec};
 
 use crate::{create_error, create_error_list, error, errors::ErrorWithPosition, lexer::token::{Position, Token, TokenLiteral, TokenType, Tokens}, parser::ast::Literal, utils::unwrap_result};
 
-use self::ast::{op_token_to_arithmetic, op_token_to_logical, EmptyStatement, Expression, ExpressionStatement, Node};
+use self::ast::{op_token_to_arithmetic, op_token_to_logical, EmptyStatement, Expression, ExpressionStatement, Identifier, Node, Program};
 
 pub mod ast;
 
@@ -57,28 +57,40 @@ impl<'a> Parser<'a> {
     }
 
     fn declaration(&mut self) -> ParserResult<Node> {
-        if self.matches(TokenType::Symbol) {
-            let symbol = unwrap_result(self.previous())?.to_owned();
-            let is_declaration = unwrap_result(self.peek())?.token_type == TokenType::Assign;
-
-            if is_declaration {
-                self.advance();
-                return Ok(self.var_declaration(symbol)?)
+        if self.check(TokenType::Symbol) {
+            if unwrap_result(self.lookahead())?.token_type == TokenType::Assign {
+                return Ok(self.var_declaration()?)
             }
         }
 
         Ok(self.statement()?)
     }
 
-    fn var_declaration(&mut self, symbol: Token) -> ParserResult<Node> {
+    fn var_declaration(&mut self) -> ParserResult<Node> {
+        let symbol = self.consume(TokenType::Symbol)?;
         let name = match unwrap_result(symbol.value)? {
             TokenLiteral::String(name) => name,
             _ => error!("Expected identifier, found something else"),
         };
 
-        // println!("{:#?}", self.primary());
+        self.consume(TokenType::Assign)?;
 
+        // Attempt to collect parameters for function declaration
+        let old_current = self.current;
+        if self.matches(TokenType::LeftParen) {
+            match self.collect_parameters() {
+                Ok(parameters) => {
+                    if self.matches(TokenType::LeftBrace) {
+                        return self.func_declaration(Identifier(name), parameters);
+                    }
+                },
+                Err(_) => {} // Collecting parameters failed
+            };
+        }
+
+        self.current = old_current; // Reset current to before the failed attempt
         let initializer = self.expression()?;
+
         self.consume(TokenType::EndOfLine)?;
 
         Ok(Node::ExpressionStatement(ExpressionStatement(
@@ -87,6 +99,65 @@ impl<'a> Parser<'a> {
                 Box::from(initializer),
             ))
         )))
+    }
+    
+    fn collect_parameters(&mut self) -> ParserResult<Vec<Identifier>> {
+        let mut arguments: Vec<Identifier> = Vec::new();
+        
+        loop {
+            if self.matches(TokenType::RightParen) {
+                break;
+            }
+            
+            let symbol = self.consume(TokenType::Symbol)?;
+            let name = match unwrap_result(symbol.value)? {
+                TokenLiteral::String(name) => name,
+                _ => error!(TokenMismatch {
+                    err: "Expected identifier".to_owned(),
+                    expected: vec![TokenType::Symbol],
+                    found: symbol.token_type.to_owned(),
+                    position: symbol.start,
+                })
+            };
+            
+            arguments.push(Identifier(name));
+            
+            if !self.matches(TokenType::Comma) {
+                if self.matches(TokenType::RightParen) {
+                    break;
+                }
+            }
+        }
+
+        Ok(arguments)
+    }
+
+    fn func_declaration(&mut self, identifier: Identifier, parameters: Vec<Identifier>) -> ParserResult<Node> {
+        println!("{:?}", self.peek());
+        let body = match self.block() {
+            Ok(Node::BlockStatement(body)) => body,
+            _ => error!("Expected block statement"),
+        };
+
+        Ok(Node::ExpressionStatement(ExpressionStatement(
+            Expression::FunctionDeclareExpr(
+                identifier,
+                parameters,
+                Box::from(body)
+            )
+        )))
+    }
+
+    fn block(&mut self) -> ParserResult<Node> {
+        let mut statements: Vec<Node> = Vec::new();
+
+        while !self.is_at_end() && !self.check(TokenType::RightBrace) {
+            statements.push(self.declaration()?);
+        }
+
+        self.consume(TokenType::RightBrace)?;
+
+        Ok(Node::BlockStatement(ast::BlockStatement(statements)))
     }
 
     fn statement(&mut self) -> ParserResult<Node> {
@@ -307,25 +378,22 @@ impl<'a> Parser<'a> {
     }
 
     fn call(&mut self) -> ParserResult<Expression> {
-        if let Some(symbol) = self.previous() {
-            let symbol = symbol.to_owned();
-            if symbol.token_type == TokenType::Symbol && self.matches(TokenType::LeftParen) {
-                return Ok(self.finish_call(symbol.to_owned())?);
-            }
+        let identifier = unwrap_result(self.peek())?.to_owned();
+        if self.matches_all_in_order(vec![TokenType::Symbol, TokenType::LeftParen]) {
+            return Ok(self.finish_call(identifier.to_owned())?);
         }
         
-        let expression = self.primary()?;
-        Ok(expression)
+        Ok(self.primary()?)
     }
 
-    fn finish_call(&mut self, symbol: Token) -> ParserResult<Expression> {
-        let name = match unwrap_result(symbol.value)? {
+    fn finish_call(&mut self, identifier: Token) -> ParserResult<Expression> {
+        let name = match unwrap_result(identifier.value)? {
             TokenLiteral::String(name) => name,
             _ => error!(TokenMismatch {
                 err: "Expected identifier".to_owned(),
                 expected: vec![TokenType::String],
-                found: symbol.token_type.to_owned(),
-                position: symbol.start,
+                found: identifier.token_type.to_owned(),
+                position: identifier.start,
             })
         };
 
@@ -337,13 +405,10 @@ impl<'a> Parser<'a> {
             }
 
             arguments.push(self.expression()?);
-            println!("{:#?}", arguments);
 
             if !self.matches(TokenType::Comma) {
                 self.consume(TokenType::RightParen)?;
                 break;
-            } else {
-                self.advance();
             }
         }
 
@@ -384,7 +449,6 @@ impl<'a> Parser<'a> {
                 self.consume(TokenType::RightParen)?;
                 return Ok(Expression::GroupExpr(Box::from(expression)));
             },
-            // _ => error!(format!("Expected expression, received '{:?}'", token.token_type)),
             _ => error!(TokenMismatch {
                 err: format!("Expected expression, received '{:?}'", token.token_type),
                 expected: vec![TokenType::Integer, TokenType::Float, TokenType::Boolean, TokenType::String, TokenType::Symbol, TokenType::LeftParen],
@@ -409,6 +473,19 @@ impl<'a> Parser<'a> {
             found: found.token_type,
             position: found.start,
         })
+    }
+
+    fn matches_all_in_order(&mut self, tokens: Vec<TokenType>) -> bool {
+        for (index, token) in tokens.iter().enumerate() {
+            if !self.check(token.to_owned()) {
+                self.current -= index;
+                return false;
+            }
+
+            self.advance();
+        }
+
+        true
     }
 
     fn match_one_of(&mut self, tokens: Vec<TokenType>) -> bool {
@@ -442,8 +519,12 @@ impl<'a> Parser<'a> {
     }
 
     fn advance(&mut self) -> Option<&Token> {
+        self.advance_amt(1)
+    }
+
+    fn advance_amt(&mut self, amount: usize) -> Option<&Token> {
         if !self.is_at_end() {
-            self.current += 1;
+            self.current += amount;
         }
 
         self.previous()
@@ -460,6 +541,14 @@ impl<'a> Parser<'a> {
 
     fn peek(&self) -> Option<&Token> {
         self.tokens.get(self.current)
+    }
+
+    fn lookahead(&self) -> Option<&Token> {
+        if self.current + 1 >= self.tokens.len() {
+            return None;
+        }
+
+        self.tokens.get(self.current + 1)
     }
 
     fn previous(&mut self) -> Option<&Token> {

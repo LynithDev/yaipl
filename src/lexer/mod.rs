@@ -36,7 +36,7 @@ impl Lexer {
             tokens: Vec::new(),
             chars: input.chars().collect::<Vec<char>>(),
             line: 1,
-            col: 1
+            col: 0
         }
     }
 
@@ -55,8 +55,8 @@ impl Lexer {
             error!("Index out of bounds")
         }
 
-        let char = self.chars.remove(0);
         self.pos_advance(1);
+        let char = self.chars.remove(0);
         
         Ok(char)
     }
@@ -77,32 +77,18 @@ impl Lexer {
     }
 
     fn get_pos_offset(&self, amount: usize) -> Position {
-        let mut line = self.line;
-        let mut col = self.col;
-
-        for _ in 0..amount {
-            let char = match self.chars.get(amount) {
-                Some(char) => char,
-                None => { return Position::from(line, col); }
-            };
-
-            if char == &'\n' {
-                line += 1;
-                col = 0;
-            } else {
-                col += 1;
-            }
-        }
-
-        Position::from(line, col)
+        let mut pos = self.get_pos();
+        pos.col += amount;
+        pos
     }
 
     fn pos_advance(&mut self, amount: usize) {
         for _ in 0..amount {
-            let char = match self.chars.get(amount) {
-                Some(char) => char,
-                None => { return; }
-            };
+            if self.chars.is_empty() {
+                break;
+            }
+            
+            let char = self.chars.get(0).unwrap_or(&' ');
 
             if char == &'\n' {
                 self.line += 1;
@@ -128,7 +114,9 @@ impl Lexer {
     
                 None => {
                     let mut ret: Tokens = Vec::new();
-                    let mut word = self.parse_word(&mut char)?;
+                    let start: Position = self.get_pos();
+                    let mut word: String = self.parse_word(&mut char)?;
+                    let end: Position = self.get_pos();
 
                     if let Some((token, len)) = self.match_char(char) {
                         ret.push(Token::from_pos(
@@ -147,32 +135,32 @@ impl Lexer {
                     ret.push(if let Ok(num) = word.replace("_", "").parse::<i32>() {
                         Token::from_value_pos(
                             TokenType::Integer, 
-                            self.get_pos(), 
+                            start,
                             self.get_pos_offset(num.to_string().chars().count()),
                             Some(TokenLiteral::Integer(num))
                         )
                     } else if let Ok(num) = word.replace("_", "").parse::<f32>() {
                         Token::from_value_pos(
                             TokenType::Float, 
-                            self.get_pos(), 
+                            start, 
                             self.get_pos_offset(num.to_string().chars().count()),
                             Some(TokenLiteral::Float(num))
                         )
                     } else {
-                        let (token_type, len, value) = match word.as_str() {
-                            "true" => (TokenType::Boolean, 4, Some(TokenLiteral::Boolean(1))),
-                            "false" => (TokenType::Boolean, 5, Some(TokenLiteral::Boolean(0))),
+                        let (token_type, value) = match word.as_str() {
+                            "true" => (TokenType::Boolean, Some(TokenLiteral::Boolean(1))),
+                            "false" => (TokenType::Boolean, Some(TokenLiteral::Boolean(0))),
     
                             // Keywords
-                            "if" => (TokenType::If, 2, None),
-                            "while" => (TokenType::While, 5, None),
-                            "for" => (TokenType::For, 3, None),
-                            "return" => (TokenType::Return, 6, None),
+                            "if" => (TokenType::If, None),
+                            "while" => (TokenType::While, None),
+                            "for" => (TokenType::For, None),
+                            "return" => (TokenType::Return, None),
     
-                            _ => (TokenType::Symbol, word.chars().count(), Some(TokenLiteral::String(word)))
+                            _ => (TokenType::Symbol, Some(TokenLiteral::String(word)))
                         };
 
-                        Token::from_value_pos(token_type, self.get_pos(), self.get_pos_offset(len), value)
+                        Token::from_value_pos(token_type, start, end, value)
                     });
     
                     ret

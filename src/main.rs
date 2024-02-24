@@ -85,13 +85,9 @@ pub fn parse_file(path: &String) -> Result<(), Box<dyn ErrorList>> {
         } 
     };
 
-    let mut lexer = Lexer::from(&content);
-    let tokens = lexer.tokenize()?;
-    // println!("----\nTokens\n{:#?}\nTokens\n----\n", &tokens);
+    let (_, ast, _) = interpret(content)?;
 
-    let mut parser = Parser::from(&tokens);
-    let ast = parser.parse()?;
-    println!("\n----\nProgram\n{:#?}\nProgram\n----", ast);
+    println!("\n----\n{:#?}\n----", ast);
 
     Ok(())
 }
