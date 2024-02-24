@@ -2,7 +2,7 @@ use std::{error::Error, vec};
 
 use crate::{create_error, create_error_list, error, errors::ErrorWithPosition, lexer::token::{Position, Token, TokenLiteral, TokenType, Tokens}, parser::ast::Literal, utils::unwrap_result};
 
-use self::ast::{op_token_to_arithmetic, op_token_to_logical, EmptyStatement, Expression, ExpressionStatement, Identifier, Node, Program};
+use self::ast::{op_token_to_arithmetic, op_token_to_logical, BlockStatement, EmptyStatement, Expression, ExpressionStatement, Identifier, Node};
 
 pub mod ast;
 
@@ -133,22 +133,20 @@ impl<'a> Parser<'a> {
     }
 
     fn func_declaration(&mut self, identifier: Identifier, parameters: Vec<Identifier>) -> ParserResult<Node> {
-        println!("{:?}", self.peek());
-        let body = match self.block() {
-            Ok(Node::BlockStatement(body)) => body,
-            _ => error!("Expected block statement"),
-        };
+        let body = self.block()?;
 
         Ok(Node::ExpressionStatement(ExpressionStatement(
             Expression::FunctionDeclareExpr(
-                identifier,
-                parameters,
-                Box::from(body)
+                ast::FunctionDeclareExpression(
+                    identifier,
+                    parameters,
+                    Box::from(body)
+                )
             )
         )))
     }
 
-    fn block(&mut self) -> ParserResult<Node> {
+    fn block(&mut self) -> ParserResult<BlockStatement> {
         let mut statements: Vec<Node> = Vec::new();
 
         while !self.is_at_end() && !self.check(TokenType::RightBrace) {
@@ -157,7 +155,7 @@ impl<'a> Parser<'a> {
 
         self.consume(TokenType::RightBrace)?;
 
-        Ok(Node::BlockStatement(ast::BlockStatement(statements)))
+        Ok(ast::BlockStatement(statements))
     }
 
     fn statement(&mut self) -> ParserResult<Node> {
@@ -201,17 +199,15 @@ impl<'a> Parser<'a> {
     fn assignment(&mut self) -> ParserResult<Expression> {
         let expression = self.or()?;
 
-        if self.matches(TokenType::Equal) {
+        if self.matches(TokenType::Assign) {
             let value = self.assignment()?;
 
             if let Expression::VariableExpr(variable) = &expression {
                 return Ok(Expression::AssignmentExpr(ast::Assignment(
-                    variable.to_owned(),
+                    variable.0.to_owned(),
                     Box::new(value),
                 )));
             }
-
-            error!("Invalid assignment target");
         }
 
         Ok(expression)

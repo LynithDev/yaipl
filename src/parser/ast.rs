@@ -102,17 +102,20 @@ pub fn op_token_to_logical(op: &Token) -> Option<LogicalOperator> {
 }
 
 create_struct!(Variable, Identifier, Box<Expression>);
-create_struct!(Assignment, Variable, Box<Expression>);
+create_struct!(Assignment, Identifier, Box<Expression>);
+create_struct!(BinaryAssignmentExpression, Identifier, Operator, Box<Expression>);
 create_struct!(Identifier, String);
 create_struct!(BinaryExpression, Box<Expression>, Operator, Box<Expression>);
 create_struct!(LogicalExpression, Box<Expression>, LogicalOperator, Box<Expression>);
 create_struct!(UnaryExpression, Operator, Box<Expression>);
 create_struct!(FunctionCallExpression, Identifier, Vec<Expression>);
+create_struct!(FunctionDeclareExpression, Identifier, Vec<Identifier>, Box<BlockStatement>);
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     VariableExpr(Variable),
     AssignmentExpr(Assignment),
+    BinaryAssignmentExpr(BinaryAssignmentExpression),
     LiteralExpr(Literal),
     IdentifierExpr(Identifier),
     BinaryExpr(BinaryExpression),
@@ -121,7 +124,7 @@ pub enum Expression {
     GroupExpr(Box<Expression>),
     BlockExpr(BlockStatement),
     FunctionCallExpr(FunctionCallExpression),
-    FunctionDeclareExpr(Identifier, Vec<Identifier>, Box<BlockStatement>)
+    FunctionDeclareExpr(FunctionDeclareExpression)
 }
 
 pub type Program = Vec<Node>;
