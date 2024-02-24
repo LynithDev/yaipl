@@ -1,4 +1,8 @@
-test = true
-while test <= 1 {
-    print("test is true")
+index = 0
+while index < 10 {
+    if index % 2 == 0 {
+        print("Even")
+    }
+
+    index += 1
 }

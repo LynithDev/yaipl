@@ -130,10 +130,13 @@ pub enum Expression {
 pub type Program = Vec<Node>;
 create_struct!(BlockStatement, Vec<Node>);
 create_struct!(EmptyStatement);
+create_struct!(ContinueStatement);
+create_struct!(BreakStatement);
 create_struct!(ExpressionStatement, Expression);
 create_struct!(ReturnStatement, Option<Expression>);
 create_struct!(IfStatement, Expression, Box<BlockStatement>);
 create_struct!(WhileStatement, Expression, Box<BlockStatement>);
+create_struct!(ForStatement, Expression, Expression, Expression, Box<BlockStatement>);
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Node {
@@ -142,6 +145,9 @@ pub enum Node {
     ExpressionStatement(ExpressionStatement),
     EmptyStatement(EmptyStatement),
     ReturnStatement(ReturnStatement),
+    ContinueStatement(ContinueStatement),
+    BreakStatement(BreakStatement),
     IfStatement(IfStatement),
     WhileStatement(WhileStatement),
+    ForStatement(ForStatement),
 }

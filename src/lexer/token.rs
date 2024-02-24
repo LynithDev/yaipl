@@ -107,6 +107,8 @@ pub enum TokenType {
     While,
     For,
     Return,
+    Break,
+    Continue,
 
     // Other
     LeftParen,

@@ -172,6 +172,18 @@ impl<'a> Parser<'a> {
             return self.while_statement();
         }
 
+        if self.matches(TokenType::For) {
+            return self.for_statement();
+        }
+
+        if self.matches(TokenType::Break) {
+            return Ok(Node::BreakStatement(ast::BreakStatement()));
+        }
+
+        if self.matches(TokenType::Continue) {
+            return Ok(Node::ContinueStatement(ast::ContinueStatement()));
+        }
+
         if self.matches(TokenType::Return) {
             return self.return_statement();
         }
@@ -201,6 +213,10 @@ impl<'a> Parser<'a> {
                 Box::from(body),
             )
         ))
+    }
+
+    fn for_statement(&mut self) -> ParserResult<Node> {
+        error!("For statement not implemented")
     }
 
     fn return_statement(&mut self) -> ParserResult<Node> {
