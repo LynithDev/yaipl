@@ -1,2 +1,4 @@
-my_var = 5
-my_var -= 3
+test = true
+if test == true {
+    print("test is true")
+}

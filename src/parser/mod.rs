@@ -80,7 +80,7 @@ impl<'a> Parser<'a> {
         if self.matches(TokenType::LeftParen) {
             match self.collect_parameters() {
                 Ok(parameters) => {
-                    if self.matches(TokenType::LeftBrace) {
+                    if self.check(TokenType::LeftBrace) {
                         return self.func_declaration(Identifier(name), parameters);
                     }
                 },
@@ -147,6 +147,7 @@ impl<'a> Parser<'a> {
     }
 
     fn block(&mut self) -> ParserResult<BlockStatement> {
+        self.consume(TokenType::LeftBrace)?;
         let mut statements: Vec<Node> = Vec::new();
 
         while !self.is_at_end() && !self.check(TokenType::RightBrace) {
@@ -163,11 +164,27 @@ impl<'a> Parser<'a> {
             return Ok(Node::EmptyStatement(EmptyStatement()));
         }
 
+        if self.matches(TokenType::If) {
+            return self.if_statement();
+        }
+
         if self.matches(TokenType::Return) {
             return self.return_statement();
         }
 
         Ok(Node::ExpressionStatement(self.expression_statement()?))
+    }
+
+    fn if_statement(&mut self) -> ParserResult<Node> {
+        let condition = self.expression()?;
+        let body = self.block()?;
+
+        Ok(Node::IfStatement(
+            ast::IfStatement(
+                condition,
+                Box::from(body),
+            )
+        ))
     }
 
     fn return_statement(&mut self) -> ParserResult<Node> {
@@ -269,7 +286,7 @@ impl<'a> Parser<'a> {
             let operator = unwrap_result(self.previous())?.to_owned();
             let right = self.comparison()?;
         
-            match op_token_to_arithmetic(&operator) {
+            match op_token_to_logical(&operator) {
                 None => error!(TokenMismatch {
                     err: format!("Expected token of type '{:?}' or '{:?}', found {:?}", TokenType::Equal, TokenType::NotEqual, operator.token_type),
                     expected: vec![TokenType::Equal, TokenType::NotEqual],
@@ -279,7 +296,7 @@ impl<'a> Parser<'a> {
                 Some(op) => {
                     expression = Expression::BinaryExpr(ast::BinaryExpression(
                         Box::new(expression),
-                        ast::Operator::Arithmetic(op),
+                        ast::Operator::Logical(op),
                         Box::new(right),
                     ))
                 }

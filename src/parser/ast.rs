@@ -124,7 +124,7 @@ pub enum Expression {
     GroupExpr(Box<Expression>),
     BlockExpr(BlockStatement),
     FunctionCallExpr(FunctionCallExpression),
-    FunctionDeclareExpr(FunctionDeclareExpression)
+    FunctionDeclareExpr(FunctionDeclareExpression),
 }
 
 pub type Program = Vec<Node>;
@@ -132,6 +132,7 @@ create_struct!(BlockStatement, Vec<Node>);
 create_struct!(EmptyStatement);
 create_struct!(ExpressionStatement, Expression);
 create_struct!(ReturnStatement, Option<Expression>);
+create_struct!(IfStatement, Expression, Box<BlockStatement>);
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Node {
@@ -139,5 +140,6 @@ pub enum Node {
     BlockStatement(BlockStatement),
     ExpressionStatement(ExpressionStatement),
     EmptyStatement(EmptyStatement),
-    ReturnStatement(ReturnStatement)
+    ReturnStatement(ReturnStatement),
+    IfStatement(IfStatement),
 }
