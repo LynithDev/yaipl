@@ -1,1 +1,8 @@
-print(true)
+test = () {
+    var = 5
+
+    print("Hello World!\n")
+    var
+}
+
+test() + 5

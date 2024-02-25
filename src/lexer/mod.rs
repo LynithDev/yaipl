@@ -224,6 +224,37 @@ impl Lexer {
                 break;
             }
 
+            if char == &'\\' {
+                *char = self.remove_char(0)?;
+                match char {
+                    'b' => builder.push('\u{0008}'),
+                    'f' => builder.push('\u{000C}'),
+                    'n' => builder.push('\n'),
+                    't' => builder.push('\t'),
+                    'r' => builder.push('\r'),
+                    '\'' => builder.push('\''),
+                    '\"' => builder.push('\"'),
+                    '\\' => builder.push('\\'),
+                    'u' => {
+                        let mut hex = String::new();
+                        
+                        for _ in 0..4 {
+                            hex.push(self.remove_char(0)?);
+                        }
+                        
+                        let unicode = match u32::from_str_radix(&hex, 16) {
+                            Ok(unicode) => unicode,
+                            Err(_) => error!("Invalid unicode escape sequence")
+                        };
+
+                        builder.push(std::char::from_u32(unicode).unwrap());
+                    },
+                    _ => builder.push(char.to_owned())
+                }
+                *char = self.remove_char(0)?;
+                continue;
+            }
+
             builder.push(char.to_owned());
             *char = self.remove_char(0)?;
         };

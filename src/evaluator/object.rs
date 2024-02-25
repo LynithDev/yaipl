@@ -59,11 +59,11 @@ impl ObjectValue {
             ObjectValue::Integer(i) => i.to_string(),
             ObjectValue::Float(f) => f.to_string(),
             ObjectValue::Boolean(b) => if b == &1 { "true".to_string() } else { "false".to_string() },
-            ObjectValue::String(s) => s.to_string(),
+            ObjectValue::String(s) => s.to_owned(),
             ObjectValue::Void => "void".to_string(),
             ObjectValue::NativeFunction(func) => {
                 let params = func.params.join(", ");
-                format!("function({})", params)
+                format!("nfunction({})", params)
             },
             ObjectValue::Function(func) => {
                 let params = func.params.join(", ");
