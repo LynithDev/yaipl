@@ -1,6 +1,6 @@
 use std::{fs, io::{stdin, stdout, Write}, process::exit};
 
-use another_interpreted_language::{errors::ErrorList, extract_type, lexer::{token::Tokens, Lexer}, parser::{ast::Node, Parser, ParserErrors, TokenMismatch}, utils::{BLUE, BOLD, GREEN, MAGENTA, RED, RESET, UNDERLINE}};
+use another_interpreted_language::{errors::ErrorList, evaluator::{object::ObjectValue, Evaluator}, extract_type, lexer::{token::Tokens, Lexer}, parser::{ast::Node, Parser, ParserErrors, TokenMismatch}, utils::{BLUE, BOLD, GREEN, MAGENTA, RED, RESET, UNDERLINE}};
 
 pub const NAME: &str = "YAIPL";
 pub const NAME_LONG: &str = "Yet Another Interpreted Programming Language";
@@ -53,7 +53,7 @@ pub fn repl() {
         let _ = stdout().flush();
         let _ = stdin.read_line(&mut buf);
 
-        let (_, ast, _) = match interpret(buf.to_owned()) {
+        let (_, _, result) = match interpret(buf.to_owned()) {
             Ok(res) => res,
             Err(err) => {
                 handle_errors(err, None);
@@ -62,18 +62,21 @@ pub fn repl() {
             }
         };
 
-        println!("{:#?}", ast);
+        println!("{:?}", result);
     }
 }
 
-fn interpret(input: String) -> Result<(Tokens, Node, ()), Box<dyn ErrorList>> {
+fn interpret(input: String) -> Result<(Tokens, Node, ObjectValue), Box<dyn ErrorList>> {
     let mut lexer = Lexer::from(&input);
     let tokens = lexer.tokenize()?;
 
     let mut parser = Parser::from(&tokens);
     let ast = parser.parse()?;
 
-    Ok((tokens.to_owned(), ast, ()))
+    let mut evaluator = Evaluator::new(ast.to_owned());
+    let result = evaluator.eval()?;
+
+    Ok((tokens.to_owned(), ast, result))
 }
 
 pub fn parse_file(path: &String) -> Result<(), Box<dyn ErrorList>> {
@@ -85,9 +88,9 @@ pub fn parse_file(path: &String) -> Result<(), Box<dyn ErrorList>> {
         } 
     };
 
-    let (_, ast, _) = interpret(content)?;
+    let (_, _, result) = interpret(content)?;
 
-    println!("\n----\n{:#?}\n----", ast);
+    println!("\n----\n{:#?}\n----", result);
 
     Ok(())
 }

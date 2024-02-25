@@ -1,9 +1,1 @@
-index = 0
-while index < 10 {
-    if index % 2 == 0 {
-        print("Even")
-        break
-    }
-
-    index += 1
-}
+((10^3 - 200) + (5 * 20)) / (25 % 3)

@@ -2,7 +2,7 @@ use std::{error::Error, vec};
 
 use crate::{create_error, create_error_list, error, errors::ErrorWithPosition, lexer::token::{Position, Token, TokenLiteral, TokenType, Tokens}, parser::ast::Literal, utils::unwrap_result};
 
-use self::ast::{op_token_to_arithmetic, op_token_to_assignment, op_token_to_logical, BlockStatement, EmptyStatement, Expression, ExpressionStatement, Identifier, Node};
+use self::ast::{op_token_to_arithmetic, op_token_to_assignment, op_token_to_logical, BlockStatement, EmptyStatement, Expression, ExpressionStatement, Identifier, Node, Program};
 
 pub mod ast;
 
@@ -41,7 +41,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Node, ParserErrors> {
+    pub fn parse(&mut self) -> Result<Program, ParserErrors> {
         Ok(Node::Program(self.parse_statements()?))
     }
 
@@ -382,17 +382,33 @@ impl<'a> Parser<'a> {
     }
 
     fn multiplication(&mut self) -> ParserResult<Expression> {
-        let mut expression = self.unary()?;
+        let mut expression = self.exponent()?;
 
         while self.match_one_of(vec![TokenType::Multiply, TokenType::Divide, TokenType::Modulo]) {
             let operator = unwrap_result(self.previous())?.to_owned();
-            let right = self.unary()?;
+            let right = self.exponent()?;
 
             let arithmetic_operator = unwrap_result(op_token_to_arithmetic(&operator))?;
 
             expression = Expression::BinaryExpr(ast::BinaryExpression(
                 Box::new(expression),
                 ast::Operator::Arithmetic(arithmetic_operator),
+                Box::new(right),
+            ));
+        }
+
+        Ok(expression)
+    }
+
+    fn exponent(&mut self) -> ParserResult<Expression> {
+        let mut expression = self.unary()?;
+
+        if self.matches(TokenType::Power) {
+            let right = self.unary()?;
+
+            expression = Expression::BinaryExpr(ast::BinaryExpression(
+                Box::new(expression),
+                ast::Operator::Arithmetic(ast::ArithmeticOperator::Power),
                 Box::new(right),
             ));
         }

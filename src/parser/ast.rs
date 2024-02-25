@@ -127,7 +127,8 @@ pub enum Expression {
     FunctionDeclareExpr(FunctionDeclareExpression),
 }
 
-pub type Program = Vec<Node>;
+pub type ProgramTree = Vec<Node>;
+pub type Program = Node;
 create_struct!(BlockStatement, Vec<Node>);
 create_struct!(EmptyStatement);
 create_struct!(ContinueStatement);
@@ -140,7 +141,7 @@ create_struct!(ForStatement, Expression, Expression, Expression, Box<BlockStatem
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Node {
-    Program(Program),
+    Program(ProgramTree),
     BlockStatement(BlockStatement),
     ExpressionStatement(ExpressionStatement),
     EmptyStatement(EmptyStatement),

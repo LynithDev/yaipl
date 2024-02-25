@@ -293,8 +293,8 @@ impl Lexer {
     
             '+' => accept_eq_ret!('=', TokenType::PlusAssign, TokenType::Plus),
             '-' => accept_eq_ret!('=', TokenType::MinusAssign, TokenType::Minus),
-            '*' => accept_eq_ret!('=', TokenType::MultiplyAssign, TokenType::Multiply),
-            '/' => accept_eq_ret!('=', TokenType::DivideAssign, TokenType::Divide),
+            '*' | '×' => accept_eq_ret!('=', TokenType::MultiplyAssign, TokenType::Multiply),
+            '/' | '÷' => accept_eq_ret!('=', TokenType::DivideAssign, TokenType::Divide),
             '%' => accept_eq_ret!('=', TokenType::ModuloAssign, TokenType::Modulo),
             '^' => accept_eq_ret!('=', TokenType::PowerAssign, TokenType::Power),
             '=' => accept_eq_ret!('=', TokenType::Equal, TokenType::Assign),
