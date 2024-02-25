@@ -1,6 +1,6 @@
 use std::{fs, io::{stdin, stdout, Write}, process::exit};
 
-use another_interpreted_language::{errors::ErrorList, evaluator::{object::ObjectValue, Evaluator}, extract_type, lexer::{token::Tokens, Lexer}, parser::{ast::Node, Parser, ParserErrors, TokenMismatch}, utils::{BLUE, BOLD, GREEN, MAGENTA, RED, RESET, UNDERLINE}};
+use another_interpreted_language::{errors::ErrorList, evaluator::{object::ObjectValue, Evaluator}, extract_type, lexer::{token::Tokens, Lexer}, parser::{ast::Node, Parser, ParserErrors, TokenMismatch}, utils::colors::{BLUE, BOLD, GREEN, MAGENTA, RED, RESET, UNDERLINE}};
 
 pub const NAME: &str = "YAIPL";
 pub const NAME_LONG: &str = "Yet Another Interpreted Programming Language";

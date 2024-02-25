@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, Expression, FunctionCallExpression, FunctionDeclareExpression, Identifier, LogicalExpression, LogicalOperator, Node, Operator, Program, ProgramTree, ReturnStatement, WhileStatement}};
+use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, Expression, FunctionCallExpression, FunctionDeclareExpression, Identifier, IfStatement, LogicalExpression, LogicalOperator, Node, Operator, Program, ProgramTree, ReturnStatement, WhileStatement}};
 
 use self::{environment::Environment, object::{FunctionObject, ObjectValue}};
 
@@ -71,17 +71,33 @@ impl Evaluator {
             Node::ExpressionStatement(expr) => self.eval_expression(&expr.0)?,
             Node::ReturnStatement(expr) => self.eval_return(&expr)?,
             Node::WhileStatement(expr) => self.eval_while(&expr)?,
+            Node::IfStatement(expr) => self.eval_if(&expr)?,
             _ => error!(format!("Not implemented eval_statement for {:?}", statement))
         })
+    }
+
+    fn eval_if(&mut self, expr: &IfStatement) -> EvaluatorResult<ObjectValue> {
+        let IfStatement(condition, block) = expr;
+        
+        let condition = self.eval_expression(condition)?;
+        if condition.to_owned() == ObjectValue::Boolean(1) {
+            self.start_env();
+            self.eval_block(&block.0)?;
+            self.end_env();
+        }
+
+        Ok(ObjectValue::Void)
     }
 
     fn eval_while(&mut self, expr: &WhileStatement) -> EvaluatorResult<ObjectValue> {
         let WhileStatement(condition, block) = expr;
         let mut result = ObjectValue::Void;
 
+        self.start_env();
         while self.eval_expression(condition)?.to_owned() == ObjectValue::Boolean(1) {
             result = self.eval_block(&block.0)?;
         }
+        self.end_env();
 
         Ok(result)
     }
@@ -203,6 +219,14 @@ impl Evaluator {
             op, 
             right
         ) = expr;
+        
+        let op = match op {
+            Operator::Arithmetic(op) => op,
+            Operator::Logical(op) => {
+                return self.eval_logical_expr(&LogicalExpression(left.to_owned(), op.to_owned(), right.to_owned()));
+            },
+            _ => error!("Invalid operator")
+        };
 
         let left = self.eval_expression(left)?;
         let right = self.eval_expression(right)?;
@@ -221,24 +245,21 @@ impl Evaluator {
         }
 
         Ok(match op {
-            Operator::Arithmetic(op) => match op {
-                ArithmeticOperator::Plus => operator_impl!(+, 
-                    (ObjectValue::String(l), r) => ObjectValue::String(format!("{}{}", l, r.to_string())),
-                    (l, ObjectValue::String(r)) => ObjectValue::String(format!("{}{}", l.to_string(), r))
-                ),
-                ArithmeticOperator::Minus => operator_impl!(-),
-                ArithmeticOperator::Multiply => operator_impl!(*),
-                ArithmeticOperator::Divide => operator_impl!(/),
-                ArithmeticOperator::Modulo => operator_impl!(%),
-                ArithmeticOperator::Power => match (left, right) {
-                    (ObjectValue::Integer(l), ObjectValue::Integer(r)) => ObjectValue::Integer(l.pow(r.try_into()?)),
-                    (ObjectValue::Integer(l), ObjectValue::Float(r)) => ObjectValue::Float((l as f32).powf(r)),
-                    (ObjectValue::Float(l), ObjectValue::Integer(r)) => ObjectValue::Float(l.powf(r as f32)),
-                    (ObjectValue::Float(l), ObjectValue::Float(r)) => ObjectValue::Float(l.powf(r)),
-                    _ => error!(format!("Invalid types for operator {:?}", op))
-                },
-            }
-            _ => error!("Not implemented")
+            ArithmeticOperator::Plus => operator_impl!(+, 
+                (ObjectValue::String(l), r) => ObjectValue::String(format!("{}{}", l, r.to_string())),
+                (l, ObjectValue::String(r)) => ObjectValue::String(format!("{}{}", l.to_string(), r))
+            ),
+            ArithmeticOperator::Minus => operator_impl!(-),
+            ArithmeticOperator::Multiply => operator_impl!(*),
+            ArithmeticOperator::Divide => operator_impl!(/),
+            ArithmeticOperator::Modulo => operator_impl!(%),
+            ArithmeticOperator::Power => match (left, right) {
+                (ObjectValue::Integer(l), ObjectValue::Integer(r)) => ObjectValue::Integer(l.pow(r.try_into()?)),
+                (ObjectValue::Integer(l), ObjectValue::Float(r)) => ObjectValue::Float((l as f32).powf(r)),
+                (ObjectValue::Float(l), ObjectValue::Integer(r)) => ObjectValue::Float(l.powf(r as f32)),
+                (ObjectValue::Float(l), ObjectValue::Float(r)) => ObjectValue::Float(l.powf(r)),
+                _ => error!(format!("Invalid types for operator {:?}", op))
+            },
         })
     }
 

@@ -2,7 +2,15 @@ test = () {
     index = 0
 
     while index < 10 {
-        print(index)
+        if index % 2 == 1 {
+            print("Odd: ")
+        }
+
+        if index % 2 == 0 {
+            print("Even: ")
+        }
+
+        println(index)
         index += 1
     }
 }
