@@ -6,6 +6,7 @@ use self::{environment::Environment, object::{FunctionObject, ObjectValue}};
 
 pub mod environment;
 pub mod object;
+pub mod yaipl_std;
 
 pub struct Evaluator {
     global_env: Environment,
@@ -23,9 +24,12 @@ impl Evaluator {
             _ => panic!("Invalid AST")
         };
 
+        let mut global_env = Environment::new();
+        yaipl_std::initialize(&mut global_env);
+
         Self {
-            global_env: Environment::new(),
             env_stack: Vec::new(),
+            global_env,
             ast
         }
     }
@@ -88,20 +92,35 @@ impl Evaluator {
             call_params
         ) = func;
 
-        let function = self.get_env().get_function_err(identifier.0.to_owned())?;
-
-        let function_object = match &function.value {
-            ObjectValue::Function(func) => func.to_owned(),
-            _ => error!("Invalid function")
-        };
+        let function = self.get_env().get_function_err(identifier.0.to_owned())?.to_owned();
 
         let mut result = ObjectValue::Void;
+        match &function.value {
+            ObjectValue::Function(func) => {
+                self.start_env();
+                let func = func.to_owned();
 
-        self.start_env();
-        for statement in function_object.body.0 {
-            result = self.eval_statement(&statement)?;
+                for (param, value) in func.params.iter().zip(call_params.iter()) {
+                    let value = self.eval_expression(value)?;
+                    self.get_env_mut().set_var(param.to_owned(), value.to_owned());
+                }
+        
+                for statement in func.body.0 {
+                    result = self.eval_statement(&statement)?;
+                }
+                self.end_env();
+            },
+            ObjectValue::NativeFunction(func) => {
+                let mut objects: Vec<ObjectValue> = Vec::new();
+                for param in call_params {
+                    let value = self.eval_expression(param)?;
+                    objects.push(value);
+                }
+
+                (func.body)(objects);
+            }
+            _ => error!("Invalid function")
         }
-        self.end_env();
 
         Ok(result)
     }

@@ -1,8 +1,1 @@
-
-test = () {
-    var = abc
-    var + 5
-}
-
-abc = 5
-test()
+print(true)
