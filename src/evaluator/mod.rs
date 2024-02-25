@@ -1,6 +1,6 @@
-use std::error::Error;
+use std::{error::Error, os::linux::raw::stat};
 
-use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, Expression, FunctionCallExpression, FunctionDeclareExpression, Identifier, Node, Operator, Program, ProgramTree}};
+use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, Expression, FunctionCallExpression, FunctionDeclareExpression, Identifier, Node, Operator, Program, ProgramTree, ReturnStatement}};
 
 use self::{environment::Environment, object::{FunctionObject, ObjectValue}};
 
@@ -68,8 +68,19 @@ impl Evaluator {
     fn eval_statement(&mut self, statement: &Node) -> EvaluatorResult<ObjectValue> {
         Ok(match statement {
             Node::ExpressionStatement(expr) => self.eval_expression(&expr.0)?,
+            Node::ReturnStatement(expr) => self.eval_return(&expr)?,
             _ => ObjectValue::Void
         })
+    }
+
+    fn eval_return(&mut self, expr: &ReturnStatement) -> EvaluatorResult<ObjectValue> {
+        let result = if let Some(expr) = &expr.0 {
+            self.eval_expression(expr)
+        } else {
+            Ok(ObjectValue::Void)
+        };
+
+        result
     }
 
     fn eval_expression(&mut self, expr: &Expression) -> EvaluatorResult<ObjectValue> {
@@ -94,21 +105,21 @@ impl Evaluator {
 
         let function = self.get_env().get_function_err(identifier.0.to_owned())?.to_owned();
 
-        let mut result = ObjectValue::Void;
-        match &function.value {
+        let result = match &function.value {
             ObjectValue::Function(func) => {
-                self.start_env();
                 let func = func.to_owned();
+                let block = func.body;
+
+                self.start_env();
 
                 for (param, value) in func.params.iter().zip(call_params.iter()) {
                     let value = self.eval_expression(value)?;
                     self.get_env_mut().set_var(param.to_owned(), value.to_owned());
                 }
-        
-                for statement in func.body.0 {
-                    result = self.eval_statement(&statement)?;
-                }
+
+                let result = self.eval_block(&block.0)?;
                 self.end_env();
+                result
             },
             ObjectValue::NativeFunction(func) => {
                 let mut objects: Vec<ObjectValue> = Vec::new();
@@ -117,9 +128,22 @@ impl Evaluator {
                     objects.push(value);
                 }
 
-                result = (func.body)(objects);
+                (func.body)(objects)
             }
             _ => error!("Invalid function")
+        };
+
+        Ok(result)
+    }
+
+    fn eval_block(&mut self, block: &Vec<Node>) -> EvaluatorResult<ObjectValue> {
+        let mut result = ObjectValue::Void;
+
+        for statement in block {
+            result = self.eval_statement(&statement)?;
+            if let Node::ReturnStatement(_) = statement {
+                break;
+            }
         }
 
         Ok(result)

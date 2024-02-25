@@ -2,7 +2,8 @@ test = () {
     var = 5
 
     println(typeof(true))
-    var
+    return var
+    var += 5                # doesnt get called
 }
 
 test() + 5
