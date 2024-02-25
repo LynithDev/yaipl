@@ -17,13 +17,25 @@ impl Object {
     }
 }
 
+#[derive(Clone, PartialEq, Debug)]
+pub struct FunctionObject {
+    pub params: Vec<String>,
+    pub body: BlockStatement
+}
+
+impl FunctionObject {
+    pub fn new(params: Vec<String>, body: BlockStatement) -> Self {
+        Self { params, body }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum ObjectValue {
     Integer(i32),
     Float(f32),
     Boolean(i8),
     String(String),
-    Function(Vec<String>, BlockStatement),
+    Function(FunctionObject),
     Void
 }
 
@@ -35,8 +47,8 @@ impl ObjectValue {
             ObjectValue::Boolean(b) => b.to_string(),
             ObjectValue::String(s) => s.to_string(),
             ObjectValue::Void => "void".to_string(),
-            ObjectValue::Function(params, _) => {
-                let params = params.join(", ");
+            ObjectValue::Function(func) => {
+                let params = func.params.join(", ");
                 format!("function({})", params)
             }
         }
@@ -49,7 +61,7 @@ impl ObjectValue {
             ObjectValue::Boolean(_) => "bool".to_string(),
             ObjectValue::String(_) => "string".to_string(),
             ObjectValue::Void => "void".to_string(),
-            ObjectValue::Function(_, _) => "function".to_string()
+            ObjectValue::Function(_) => "function".to_string()
         }
     }
 }

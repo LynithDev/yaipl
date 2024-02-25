@@ -37,6 +37,13 @@ impl Environment {
         self.var_store.get(identifier.as_str())
     }
 
+    pub fn get_var_err(&self, identifier: String) -> Result<&Object, String> {
+        match self.var_store.get(identifier.as_str()) {
+            Some(object) => Ok(object),
+            None => Err(format!("Undefined variable {:?}", identifier))
+        }
+    }
+
     pub fn set_function(&mut self, identifier: String, value: ObjectValue) -> Option<&Object> {
         let object = Object::new(value);
 
@@ -48,4 +55,10 @@ impl Environment {
         self.functions_store.get(identifier.as_str())
     }
 
+    pub fn get_function_err(&self, identifier: String) -> Result<&Object, String> {
+        match self.functions_store.get(identifier.as_str()) {
+            Some(object) => Ok(object),
+            None => Err(format!("Undefined function {:?}", identifier))
+        }
+    }
 }

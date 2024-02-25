@@ -1,8 +1,8 @@
 use std::error::Error;
 
-use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, Expression, FunctionDeclareExpression, Identifier, Node, Operator, Program, ProgramTree}};
+use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, Expression, FunctionCallExpression, FunctionDeclareExpression, Identifier, Node, Operator, Program, ProgramTree}};
 
-use self::{environment::Environment, object::ObjectValue};
+use self::{environment::Environment, object::{FunctionObject, ObjectValue}};
 
 pub mod environment;
 pub mod object;
@@ -53,8 +53,31 @@ impl Evaluator {
             
             Expression::AssignmentExpr(assignment) => self.eval_assignment_expr(assignment)?,
             Expression::FunctionDeclareExpr(func) => self.eval_function_declare(func)?,
+            Expression::FunctionCallExpr(func) => self.eval_call(func)?,
             _ => error!(format!("Not implemented eval_expression for {:?}", expr))
         })
+    }
+
+    fn eval_call(&mut self, func: &FunctionCallExpression) -> EvaluatorResult<ObjectValue> {
+        let FunctionCallExpression(
+            identifier, 
+            call_params
+        ) = func;
+
+        let function = self.env.get_function_err(identifier.0.to_owned())?;
+
+        let function_object = match &function.value {
+            ObjectValue::Function(func) => func,
+            _ => error!("Invalid function")
+        };
+
+        let mut result = ObjectValue::Void;
+
+        for statement in function_object.body.0.to_owned() {
+            result = self.eval_statement(&statement)?;
+        }
+
+        Ok(result)
     }
 
     fn eval_function_declare(&mut self, func: &FunctionDeclareExpression) -> EvaluatorResult<ObjectValue> {
@@ -65,18 +88,14 @@ impl Evaluator {
         ) = func;
 
         let params: Vec<String> = params.to_owned().into_iter().map(|param| param.0).collect();
-        let object = ObjectValue::Function(params.to_owned(), *block.to_owned());
+        let object = ObjectValue::Function(FunctionObject::new(params.to_owned(), *block.to_owned()));
         self.env.set_function(identifier.0.to_owned(), object);
 
         Ok(ObjectValue::Void)
     }
 
     fn eval_identifier(&mut self, identifier: &Identifier) -> EvaluatorResult<ObjectValue> {
-        let object = match self.env.get_var(identifier.0.to_owned()) {
-            Some(object) => object,
-            None => error!(format!("Undefined variable {:?}", identifier.0))
-        };
-
+        let object = self.env.get_var_err(identifier.0.to_owned())?;
         Ok(object.value.to_owned())
     }
 
