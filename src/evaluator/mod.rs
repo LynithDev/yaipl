@@ -117,7 +117,7 @@ impl Evaluator {
                     objects.push(value);
                 }
 
-                (func.body)(objects);
+                result = (func.body)(objects);
             }
             _ => error!("Invalid function")
         }

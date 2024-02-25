@@ -26,5 +26,24 @@ pub fn initialize(env: &mut Environment) {
         ObjectValue::Void
     });
 
-    
+    function!("println", ["arg"], (args) => {
+        let value = if args.len() > 0 {
+            args[0].to_string()
+        } else {
+            String::from("")
+        };
+
+        println!("{}", value);
+        ObjectValue::Void
+    });
+
+    function!("typeof", ["arg"], (args) => {
+        let value = if args.len() > 0 {
+            args[0].name()
+        } else {
+            String::from("")
+        };
+
+        ObjectValue::String(value)
+    });
 }
