@@ -1,18 +1,11 @@
 test = () {
     index = 0
 
-    while index < 10 {
-        if index % 2 == 1 {
-            print("Odd: ")
-        }
-
-        if index % 2 == 0 {
-            print("Even: ")
-        }
-
-        println(index)
+    while index < 1_000 {
         index += 1
     }
+
+    println("Done")
 }
 
 test()

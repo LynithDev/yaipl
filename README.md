@@ -65,5 +65,29 @@ my_function = (param) {
 print(my_function(5)) # returns 25
 ```
 
-### Standard Library
-The standard library contains a collection of functions accessible globally. Functions such as `print` are accessible through this library.
+### Built-in Functions (Native Functions)
+<table>
+
+<tr>
+    <th>Function</th>
+    <th>Description</th>
+    <th>Returns</th>
+</tr>
+
+<tr>
+    <td><kbd>print(arg)</kbd></td>
+    <td>Prints the value of the argument to the console</td>
+    <td>"void"</td>
+</tr>
+
+<tr>
+    <td><kbd>println(arg)</kbd></td>
+    <td>Same as print, but appends a '\n' at the end for a new line</td>
+    <td>"void"</td>
+</tr>
+
+<tr>
+    <td><kbd>typeof(value)</kbd></td>
+    <td>Returns the type of the value</td>
+    <td>"int" | "float" | "bool" | "string" | "function" | "nfunction" | "void"</td>
+</tr>
