@@ -2,28 +2,28 @@ use std::collections::HashMap;
 
 use super::object::{Object, ObjectValue};
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Environment {
+    pub parent: Option<Box<Environment>>,
     pub var_store: HashMap<String, Object>,
     pub functions_store: HashMap<String, Object>,
-    pub is_root_env: bool,
 }
 
 impl Environment {
-    fn new_opt_root(root: bool) -> Environment {
+    pub fn with_parent(parent: Box<Environment>) -> Environment {
         Environment {
+            parent: Some(parent),
             var_store: HashMap::new(),
             functions_store: HashMap::new(),
-            is_root_env: root,
         }
     }
 
-    pub fn new_root() -> Environment {
-        Environment::new_opt_root(true)
-    }
-
     pub fn new() -> Environment {
-        Environment::new_opt_root(false)
+        Environment {
+            parent: None,
+            var_store: HashMap::new(),
+            functions_store: HashMap::new(),
+        }
     }
 
     pub fn set_var(&mut self, identifier: String, value: ObjectValue) -> Option<&Object> {
@@ -34,11 +34,19 @@ impl Environment {
     }
 
     pub fn get_var(&self, identifier: String) -> Option<&Object> {
-        self.var_store.get(identifier.as_str())
+        if let Some(result) = self.var_store.get(identifier.as_str()) {
+            return Some(result);
+        }
+
+        if let Some(parent) = &self.parent {
+            return parent.get_var(identifier);
+        }
+
+        None
     }
 
     pub fn get_var_err(&self, identifier: String) -> Result<&Object, String> {
-        match self.var_store.get(identifier.as_str()) {
+        match self.get_var(identifier.to_owned()) {
             Some(object) => Ok(object),
             None => Err(format!("Undefined variable {:?}", identifier))
         }
@@ -52,11 +60,19 @@ impl Environment {
     }
 
     pub fn get_function(&self, identifier: String) -> Option<&Object> {
-        self.functions_store.get(identifier.as_str())
+        if let Some(function) = self.functions_store.get(identifier.as_str()) {
+            return Some(function);
+        }
+
+        if let Some(parent) = &self.parent {
+            return parent.get_function(identifier);
+        }
+
+        None
     }
 
     pub fn get_function_err(&self, identifier: String) -> Result<&Object, String> {
-        match self.functions_store.get(identifier.as_str()) {
+        match self.get_function(identifier.to_owned()) {
             Some(object) => Ok(object),
             None => Err(format!("Undefined function {:?}", identifier))
         }

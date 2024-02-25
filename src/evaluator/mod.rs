@@ -8,7 +8,8 @@ pub mod environment;
 pub mod object;
 
 pub struct Evaluator {
-    pub env: Environment,
+    global_env: Environment,
+    env_stack: Vec<Environment>,
     ast: ProgramTree
 }
 
@@ -16,14 +17,15 @@ create_error_list!(EvaluatorErrors, {});
 
 type EvaluatorResult<T> = Result<T, Box<dyn Error>>; 
 impl Evaluator {
-    pub fn new(ast: Program) -> Evaluator {
+    pub fn new(ast: Program) -> Self {
         let ast = match ast {
             Node::Program(ast) => ast,
             _ => panic!("Invalid AST")
         };
 
-        Evaluator {
-            env: Environment::new_root(),
+        Self {
+            global_env: Environment::new(),
+            env_stack: Vec::new(),
             ast
         }
     }
@@ -35,6 +37,28 @@ impl Evaluator {
         }
 
         Ok(result)
+    }
+
+    fn get_env(&self) -> &Environment {
+        match self.env_stack.last() {
+            Some(env) => env,
+            None => &self.global_env
+        }
+    }
+
+    fn get_env_mut(&mut self) -> &mut Environment {
+        match self.env_stack.last_mut() {
+            Some(env) => env,
+            None => &mut self.global_env
+        }
+    }
+
+    fn start_env(&mut self) {
+        self.env_stack.push(Environment::with_parent(Box::new(self.get_env().clone())));
+    }
+
+    fn end_env(&mut self) {
+        self.env_stack.pop();
     }
 
     fn eval_statement(&mut self, statement: &Node) -> EvaluatorResult<ObjectValue> {
@@ -64,18 +88,20 @@ impl Evaluator {
             call_params
         ) = func;
 
-        let function = self.env.get_function_err(identifier.0.to_owned())?;
+        let function = self.get_env().get_function_err(identifier.0.to_owned())?;
 
         let function_object = match &function.value {
-            ObjectValue::Function(func) => func,
+            ObjectValue::Function(func) => func.to_owned(),
             _ => error!("Invalid function")
         };
 
         let mut result = ObjectValue::Void;
 
-        for statement in function_object.body.0.to_owned() {
+        self.start_env();
+        for statement in function_object.body.0 {
             result = self.eval_statement(&statement)?;
         }
+        self.end_env();
 
         Ok(result)
     }
@@ -89,13 +115,13 @@ impl Evaluator {
 
         let params: Vec<String> = params.to_owned().into_iter().map(|param| param.0).collect();
         let object = ObjectValue::Function(FunctionObject::new(params.to_owned(), *block.to_owned()));
-        self.env.set_function(identifier.0.to_owned(), object);
+        self.get_env_mut().set_function(identifier.0.to_owned(), object);
 
         Ok(ObjectValue::Void)
     }
 
     fn eval_identifier(&mut self, identifier: &Identifier) -> EvaluatorResult<ObjectValue> {
-        let object = self.env.get_var_err(identifier.0.to_owned())?;
+        let object = self.get_env().get_var_err(identifier.0.to_owned())?;
         Ok(object.value.to_owned())
     }
 
@@ -106,7 +132,7 @@ impl Evaluator {
         ) = expr;
 
         let value = self.eval_expression(value)?;
-        self.env.set_var(identifier.0.to_owned(), value.to_owned());
+        self.get_env_mut().set_var(identifier.0.to_owned(), value.to_owned());
         Ok(value)
     }
 
