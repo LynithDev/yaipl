@@ -1,9 +1,10 @@
 test = () {
-    var = 5
+    index = 0
 
-    println(typeof(true))
-    return var
-    var += 5                # doesnt get called
+    while index < 10 {
+        print(index)
+        index += 1
+    }
 }
 
-test() + 5
+test()

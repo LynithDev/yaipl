@@ -1,6 +1,6 @@
-use std::{error::Error, os::linux::raw::stat};
+use std::error::Error;
 
-use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, Expression, FunctionCallExpression, FunctionDeclareExpression, Identifier, Node, Operator, Program, ProgramTree, ReturnStatement}};
+use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, Expression, FunctionCallExpression, FunctionDeclareExpression, Identifier, LogicalExpression, LogicalOperator, Node, Operator, Program, ProgramTree, ReturnStatement, WhileStatement}};
 
 use self::{environment::Environment, object::{FunctionObject, ObjectValue}};
 
@@ -67,10 +67,23 @@ impl Evaluator {
 
     fn eval_statement(&mut self, statement: &Node) -> EvaluatorResult<ObjectValue> {
         Ok(match statement {
+            Node::EmptyStatement(_) => ObjectValue::Void,
             Node::ExpressionStatement(expr) => self.eval_expression(&expr.0)?,
             Node::ReturnStatement(expr) => self.eval_return(&expr)?,
-            _ => ObjectValue::Void
+            Node::WhileStatement(expr) => self.eval_while(&expr)?,
+            _ => error!(format!("Not implemented eval_statement for {:?}", statement))
         })
+    }
+
+    fn eval_while(&mut self, expr: &WhileStatement) -> EvaluatorResult<ObjectValue> {
+        let WhileStatement(condition, block) = expr;
+        let mut result = ObjectValue::Void;
+
+        while self.eval_expression(condition)?.to_owned() == ObjectValue::Boolean(1) {
+            result = self.eval_block(&block.0)?;
+        }
+
+        Ok(result)
     }
 
     fn eval_return(&mut self, expr: &ReturnStatement) -> EvaluatorResult<ObjectValue> {
@@ -89,6 +102,7 @@ impl Evaluator {
             Expression::LiteralExpr(literal) => ObjectValue::from(literal.to_owned()),
             Expression::GroupExpr(group) => self.eval_group_expr(group)?,
             Expression::BinaryExpr(expr) => self.eval_binary_expr(expr)?,
+            Expression::LogicalExpr(expr) => self.eval_logical_expr(expr)?,
             
             Expression::AssignmentExpr(assignment) => self.eval_assignment_expr(assignment)?,
             Expression::FunctionDeclareExpr(func) => self.eval_function_declare(func)?,
@@ -225,6 +239,73 @@ impl Evaluator {
                 },
             }
             _ => error!("Not implemented")
+        })
+    }
+
+    fn eval_logical_expr(&mut self, expr: &LogicalExpression) -> EvaluatorResult<ObjectValue> {
+        let LogicalExpression(
+            left, 
+            op, 
+            right
+        ) = expr;
+
+        let left = self.eval_expression(left)?;
+        let right = self.eval_expression(right)?;
+
+        macro_rules! comparison {
+            ($op:tt $(, $pat:pat => $result:expr)*) => {
+                match (left, right) {
+                    (ObjectValue::Integer(l), ObjectValue::Integer(r)) => ObjectValue::Boolean(if l $op r { 1 } else { 0 }),
+                    (ObjectValue::Float(l), ObjectValue::Float(r)) => ObjectValue::Boolean(if l $op r { 1 } else { 0 }),
+                    (ObjectValue::Integer(l), ObjectValue::Float(r)) => ObjectValue::Boolean(if (l as f32) $op r { 1 } else { 0 }),
+                    (ObjectValue::Float(l), ObjectValue::Integer(r)) => ObjectValue::Boolean(if l $op (r as f32) { 1 } else { 0 }),
+                    $($pat => $result,)*
+                    _ => error!("Invalid types for operator <")
+                }
+            };
+        }
+
+        Ok(match op {
+            LogicalOperator::Equal => {
+                match (left, right) {
+                    (ObjectValue::Integer(l), ObjectValue::Integer(r)) => ObjectValue::Boolean(if l == r { 1 } else { 0 }),
+                    (ObjectValue::Float(l), ObjectValue::Float(r)) => ObjectValue::Boolean(if l == r { 1 } else { 0 }),
+                    (ObjectValue::Boolean(l), ObjectValue::Boolean(r)) => ObjectValue::Boolean(if l == r { 1 } else { 0 }),
+                    (ObjectValue::String(l), ObjectValue::String(r)) => ObjectValue::Boolean(if l == r { 1 } else { 0 }),
+                    _ => error!("Invalid types for operator ==")
+                }
+            },
+            LogicalOperator::NotEqual => {
+                match (left, right) {
+                    (ObjectValue::Integer(l), ObjectValue::Integer(r)) => ObjectValue::Boolean(if l != r { 1 } else { 0 }),
+                    (ObjectValue::Float(l), ObjectValue::Float(r)) => ObjectValue::Boolean(if l != r { 1 } else { 0 }),
+                    (ObjectValue::Boolean(l), ObjectValue::Boolean(r)) => ObjectValue::Boolean(if l != r { 1 } else { 0 }),
+                    (ObjectValue::String(l), ObjectValue::String(r)) => ObjectValue::Boolean(if l != r { 1 } else { 0 }),
+                    _ => error!("Invalid types for operator !=")
+                }
+            },
+            LogicalOperator::And => {
+                match (left, right) {
+                    (ObjectValue::Boolean(l), ObjectValue::Boolean(r)) => ObjectValue::Boolean(if l == 1 && r == 1 { 1 } else { 0 }),
+                    _ => error!("Invalid types for operator &&")
+                }
+            },
+            LogicalOperator::Or => {
+                match (left, right) {
+                    (ObjectValue::Boolean(l), ObjectValue::Boolean(r)) => ObjectValue::Boolean(if l == 1 || r == 1 { 1 } else { 0 }),
+                    _ => error!("Invalid types for operator ||")
+                }
+            },
+            LogicalOperator::Not => {
+                match left {
+                    ObjectValue::Boolean(l) => ObjectValue::Boolean(if l == 1 { 0 } else { 1 }),
+                    _ => error!("Invalid types for operator !")
+                }
+            },
+            LogicalOperator::LesserThan => comparison!(<),
+            LogicalOperator::LesserThanEqual => comparison!(<=),
+            LogicalOperator::GreaterThan => comparison!(>),
+            LogicalOperator::GreaterThanEqual => comparison!(>=),
         })
     }
 
