@@ -37,4 +37,15 @@ impl Environment {
         self.var_store.get(identifier.as_str())
     }
 
+    pub fn set_function(&mut self, identifier: String, value: ObjectValue) -> Option<&Object> {
+        let object = Object::new(value);
+
+        self.functions_store.insert(identifier.to_owned(), object);
+        self.functions_store.get(identifier.as_str())
+    }
+
+    pub fn get_function(&self, identifier: String) -> Option<&Object> {
+        self.functions_store.get(identifier.as_str())
+    }
+
 }

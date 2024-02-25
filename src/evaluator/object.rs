@@ -1,4 +1,4 @@
-use crate::parser::ast::Literal;
+use crate::parser::ast::{BlockStatement, Literal};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Object {
@@ -23,8 +23,8 @@ pub enum ObjectValue {
     Float(f32),
     Boolean(i8),
     String(String),
+    Function(Vec<String>, BlockStatement),
     Void
-    // Function(Vec<Object>, Box<Environment>)
 }
 
 impl ObjectValue {
@@ -34,7 +34,11 @@ impl ObjectValue {
             ObjectValue::Float(f) => f.to_string(),
             ObjectValue::Boolean(b) => b.to_string(),
             ObjectValue::String(s) => s.to_string(),
-            ObjectValue::Void => "void".to_string()
+            ObjectValue::Void => "void".to_string(),
+            ObjectValue::Function(params, _) => {
+                let params = params.join(", ");
+                format!("function({})", params)
+            }
         }
     }
 
@@ -44,7 +48,8 @@ impl ObjectValue {
             ObjectValue::Float(_) => "float".to_string(),
             ObjectValue::Boolean(_) => "bool".to_string(),
             ObjectValue::String(_) => "string".to_string(),
-            ObjectValue::Void => "void".to_string()
+            ObjectValue::Void => "void".to_string(),
+            ObjectValue::Function(_, _) => "function".to_string()
         }
     }
 }

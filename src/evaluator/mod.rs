@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, Expression, Identifier, Node, Operator, Program, ProgramTree}};
+use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, Expression, FunctionDeclareExpression, Identifier, Node, Operator, Program, ProgramTree}};
 
 use self::{environment::Environment, object::ObjectValue};
 
@@ -48,11 +48,27 @@ impl Evaluator {
         Ok(match expr {
             Expression::IdentifierExpr(identifier) => self.eval_identifier(identifier)?,
             Expression::LiteralExpr(literal) => ObjectValue::from(literal.to_owned()),
-            Expression::AssignmentExpr(assignment) => self.eval_assignment_expr(assignment)?,
             Expression::GroupExpr(group) => self.eval_group_expr(group)?,
             Expression::BinaryExpr(expr) => self.eval_binary_expr(expr)?,
+            
+            Expression::AssignmentExpr(assignment) => self.eval_assignment_expr(assignment)?,
+            Expression::FunctionDeclareExpr(func) => self.eval_function_declare(func)?,
             _ => error!(format!("Not implemented eval_expression for {:?}", expr))
         })
+    }
+
+    fn eval_function_declare(&mut self, func: &FunctionDeclareExpression) -> EvaluatorResult<ObjectValue> {
+        let crate::parser::ast::FunctionDeclareExpression(
+            identifier, 
+            params, 
+            block
+        ) = func;
+
+        let params: Vec<String> = params.to_owned().into_iter().map(|param| param.0).collect();
+        let object = ObjectValue::Function(params.to_owned(), *block.to_owned());
+        self.env.set_function(identifier.0.to_owned(), object);
+
+        Ok(ObjectValue::Void)
     }
 
     fn eval_identifier(&mut self, identifier: &Identifier) -> EvaluatorResult<ObjectValue> {
