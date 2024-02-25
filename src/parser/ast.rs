@@ -73,6 +73,18 @@ pub fn op_token_to_arithmetic(op: &Token) -> Option<ArithmeticOperator> {
     }
 }
 
+pub fn assignment_to_arithmetic(op: &AssignmentOperator) -> Option<ArithmeticOperator> {
+    match op {
+        AssignmentOperator::PlusAssign => Some(ArithmeticOperator::Plus),
+        AssignmentOperator::MinusAssign => Some(ArithmeticOperator::Minus),
+        AssignmentOperator::DivideAssign => Some(ArithmeticOperator::Divide),
+        AssignmentOperator::MultiplyAssign => Some(ArithmeticOperator::Multiply),
+        AssignmentOperator::ModuloAssign => Some(ArithmeticOperator::Modulo),
+        AssignmentOperator::PowerAssign => Some(ArithmeticOperator::Power),
+        _ => None
+    }
+}
+
 pub fn op_token_to_assignment(op: &Token) -> Option<AssignmentOperator> {
     match op.token_type {
         TokenType::PlusAssign => Some(AssignmentOperator::PlusAssign),
@@ -103,7 +115,6 @@ pub fn op_token_to_logical(op: &Token) -> Option<LogicalOperator> {
 
 create_struct!(Variable, Identifier, Box<Expression>);
 create_struct!(Assignment, Identifier, Box<Expression>);
-create_struct!(BinaryAssignmentExpression, Identifier, Operator, Box<Expression>);
 create_struct!(Identifier, String);
 create_struct!(BinaryExpression, Box<Expression>, Operator, Box<Expression>);
 create_struct!(LogicalExpression, Box<Expression>, LogicalOperator, Box<Expression>);
@@ -115,7 +126,6 @@ create_struct!(FunctionDeclareExpression, Identifier, Vec<Identifier>, Box<Block
 pub enum Expression {
     VariableExpr(Variable),
     AssignmentExpr(Assignment),
-    BinaryAssignmentExpr(BinaryAssignmentExpression),
     LiteralExpr(Literal),
     IdentifierExpr(Identifier),
     BinaryExpr(BinaryExpression),

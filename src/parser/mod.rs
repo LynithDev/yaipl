@@ -2,7 +2,7 @@ use std::{error::Error, vec};
 
 use crate::{create_error, create_error_list, error, errors::ErrorWithPosition, lexer::token::{Position, Token, TokenLiteral, TokenType, Tokens}, parser::ast::Literal, utils::unwrap_result};
 
-use self::ast::{op_token_to_arithmetic, op_token_to_assignment, op_token_to_logical, BlockStatement, EmptyStatement, Expression, ExpressionStatement, Identifier, Node, Program};
+use self::ast::{assignment_to_arithmetic, op_token_to_arithmetic, op_token_to_assignment, op_token_to_logical, BlockStatement, EmptyStatement, Expression, ExpressionStatement, Identifier, Node, Program};
 
 pub mod ast;
 
@@ -257,12 +257,18 @@ impl<'a> Parser<'a> {
             let operator = unwrap_result(self.previous())?.to_owned();
             let value = self.assignment()?;
 
-            if let Expression::IdentifierExpr(variable) = &expression {
-                return Ok(Expression::BinaryAssignmentExpr(ast::BinaryAssignmentExpression(
-                    variable.to_owned(),
-                    ast::Operator::Assignment(unwrap_result(op_token_to_assignment(&operator))?),
-                    Box::new(value),
-                )));
+            if let Expression::IdentifierExpr(identifier) = &expression {
+                let ast_op = unwrap_result(op_token_to_assignment(&operator))?;
+                let arithmetic_op = unwrap_result(assignment_to_arithmetic(&ast_op))?;
+
+                return Ok(Expression::AssignmentExpr(ast::Assignment(
+                    identifier.to_owned(),
+                    Box::from(Expression::BinaryExpr(ast::BinaryExpression(
+                        Box::new(expression),
+                        ast::Operator::Arithmetic(arithmetic_op),
+                        Box::new(value),
+                    ))),
+                )))
             }
         }
 
