@@ -1,11 +1,20 @@
 use crate::parser::ast::Literal;
 
-use super::environment::Environment;
-
 #[derive(Clone, Debug, PartialEq)]
-pub struct Object<'a> {
-    pub environment: &'a Environment<'a>,
+pub struct Object {
     pub value: ObjectValue,
+}
+
+impl Object {
+    pub fn new(value: ObjectValue) -> Object {
+        Object {
+            value
+        }
+    }
+
+    pub fn get_type(&self) -> String {
+        self.value.name()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -16,12 +25,6 @@ pub enum ObjectValue {
     String(String),
     Void
     // Function(Vec<Object>, Box<Environment>)
-}
-
-impl Object<'_> {
-    pub fn get_type(&self) -> String {
-        self.value.name()
-    }
 }
 
 impl ObjectValue {

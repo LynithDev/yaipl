@@ -1,29 +1,29 @@
 use std::error::Error;
 
-use crate::{create_error_list, error, parser::ast::{self, ArithmeticOperator, BinaryExpression, Expression, ExpressionStatement, Node, Operator, Program, ProgramTree}};
+use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, Expression, Identifier, Node, Operator, Program, ProgramTree}};
 
 use self::{environment::Environment, object::ObjectValue};
 
 pub mod environment;
 pub mod object;
 
-pub struct Evaluator<'a> {
-    pub env: Environment<'a>,
+pub struct Evaluator {
+    pub env: Environment,
     ast: ProgramTree
 }
 
 create_error_list!(EvaluatorErrors, {});
 
 type EvaluatorResult<T> = Result<T, Box<dyn Error>>; 
-impl Evaluator<'_> {
-    pub fn new<'a>(ast: Program) -> Evaluator<'a> {
+impl Evaluator {
+    pub fn new(ast: Program) -> Evaluator {
         let ast = match ast {
             Node::Program(ast) => ast,
             _ => panic!("Invalid AST")
         };
 
         Evaluator {
-            env: Environment::new(),
+            env: Environment::new_root(),
             ast
         }
     }
@@ -38,25 +38,41 @@ impl Evaluator<'_> {
     }
 
     fn eval_statement(&mut self, statement: &Node) -> EvaluatorResult<ObjectValue> {
-        let mut result = ObjectValue::Void;
-        
-        match statement {
-            Node::ExpressionStatement(expr) => {
-                result = self.eval_expression(&expr.0)?;
-            },
-            _ => {}
-        }
-
-        Ok(result)
+        Ok(match statement {
+            Node::ExpressionStatement(expr) => self.eval_expression(&expr.0)?,
+            _ => ObjectValue::Void
+        })
     }
 
     fn eval_expression(&mut self, expr: &Expression) -> EvaluatorResult<ObjectValue> {
         Ok(match expr {
+            Expression::IdentifierExpr(identifier) => self.eval_identifier(identifier)?,
             Expression::LiteralExpr(literal) => ObjectValue::from(literal.to_owned()),
-            Expression::GroupExpr(group) => self.eval_group_expr(&group)?,
+            Expression::AssignmentExpr(assignment) => self.eval_assignment_expr(assignment)?,
+            Expression::GroupExpr(group) => self.eval_group_expr(group)?,
             Expression::BinaryExpr(expr) => self.eval_binary_expr(expr)?,
             _ => error!(format!("Not implemented eval_expression for {:?}", expr))
         })
+    }
+
+    fn eval_identifier(&mut self, identifier: &Identifier) -> EvaluatorResult<ObjectValue> {
+        let object = match self.env.get_var(identifier.0.to_owned()) {
+            Some(object) => object,
+            None => error!(format!("Undefined variable {:?}", identifier.0))
+        };
+
+        Ok(object.value.to_owned())
+    }
+
+    fn eval_assignment_expr(&mut self, expr: &Assignment) -> EvaluatorResult<ObjectValue> {
+        let Assignment(
+            identifier, 
+            value
+        ) = expr;
+
+        let value = self.eval_expression(value)?;
+        self.env.set_var(identifier.0.to_owned(), value.to_owned());
+        Ok(value)
     }
 
     fn eval_group_expr(&mut self, expr: &Expression) -> EvaluatorResult<ObjectValue> {

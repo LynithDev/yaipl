@@ -72,11 +72,11 @@ impl<'a> Parser<'a> {
             TokenLiteral::String(name) => name,
             _ => error!("Expected identifier, found something else"),
         };
-
+        
         self.consume(TokenType::Assign)?;
-
-        // Attempt to collect parameters for function declaration
         let old_current = self.current;
+        
+        // Attempt to collect parameters for function declaration
         if self.matches(TokenType::LeftParen) {
             match self.collect_parameters() {
                 Ok(parameters) => {
@@ -87,14 +87,13 @@ impl<'a> Parser<'a> {
                 Err(_) => {} // Collecting parameters failed
             };
         }
-
         self.current = old_current; // Reset current to before the failed attempt
-        let initializer = self.expression()?;
 
+        let initializer = self.expression()?;
         self.consume(TokenType::EndOfLine)?;
 
         Ok(Node::ExpressionStatement(ExpressionStatement(
-            Expression::VariableExpr(ast::Variable(
+            Expression::AssignmentExpr(ast::Assignment(
                 ast::Identifier(name),
                 Box::from(initializer),
             ))
@@ -247,17 +246,6 @@ impl<'a> Parser<'a> {
 
     fn assignment(&mut self) -> ParserResult<Expression> {
         let expression = self.or()?;
-
-        if self.matches(TokenType::Assign) {
-            let value = self.assignment()?;
-
-            if let Expression::VariableExpr(variable) = &expression {
-                return Ok(Expression::AssignmentExpr(ast::Assignment(
-                    variable.0.to_owned(),
-                    Box::new(value),
-                )));
-            }
-        }
 
         if self.match_one_of(vec![
             TokenType::PlusAssign,

@@ -1,20 +1,40 @@
 use std::collections::HashMap;
 
-use super::object::Object;
+use super::object::{Object, ObjectValue};
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct Environment<'a> {
-    pub globals_store: HashMap<String, Object<'a>>,
-    pub functions_store: HashMap<String, Object<'a>>,
+#[derive(Debug, PartialEq)]
+pub struct Environment {
+    pub var_store: HashMap<String, Object>,
+    pub functions_store: HashMap<String, Object>,
     pub is_root_env: bool,
 }
 
-impl<'a> Environment<'a> {
-    pub fn new() -> Environment<'a> {
+impl Environment {
+    fn new_opt_root(root: bool) -> Environment {
         Environment {
-            globals_store: HashMap::new(),
+            var_store: HashMap::new(),
             functions_store: HashMap::new(),
-            is_root_env: true,
+            is_root_env: root,
         }
     }
+
+    pub fn new_root() -> Environment {
+        Environment::new_opt_root(true)
+    }
+
+    pub fn new() -> Environment {
+        Environment::new_opt_root(false)
+    }
+
+    pub fn set_var(&mut self, identifier: String, value: ObjectValue) -> Option<&Object> {
+        let object = Object::new(value);
+
+        self.var_store.insert(identifier.to_owned(), object);
+        self.var_store.get(identifier.as_str())
+    }
+
+    pub fn get_var(&self, identifier: String) -> Option<&Object> {
+        self.var_store.get(identifier.as_str())
+    }
+
 }
