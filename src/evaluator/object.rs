@@ -15,6 +15,21 @@ impl Object {
     pub fn get_type(&self) -> String {
         self.value.name()
     }
+
+    pub fn is_number(&self) -> bool {
+        match &self.value {
+            ObjectValue::Integer(_) | ObjectValue::Float(_) => true,
+            _ => false
+        }
+    }
+
+    pub fn is_function(&self) -> bool {
+        match &self.value {
+            ObjectValue::Function(_) => true,
+            ObjectValue::NativeFunction(_) => true,
+            _ => false
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Debug)]

@@ -67,14 +67,35 @@ pub fn repl() {
 }
 
 fn interpret(input: String) -> Result<(Tokens, Node, ObjectValue), Box<dyn ErrorList>> {
+    let now = std::time::Instant::now();
+
     let mut lexer = Lexer::from(&input);
     let tokens = lexer.tokenize()?;
+    let lexer_elapsed = now.elapsed().as_micros();
 
     let mut parser = Parser::from(&tokens);
     let ast = parser.parse()?;
+    let parser_elapsed = now.elapsed().as_micros() - lexer_elapsed;
 
     let mut evaluator = Evaluator::new(ast.to_owned());
     let result = evaluator.eval()?;
+    let eval_elapsed = now.elapsed().as_micros() - parser_elapsed;
+
+    println!("
+    Lexer: {}{}ms
+    Parser: {}{}ms
+    Evaluator: {}{}ms
+    Total: {}{}ms
+    ", 
+        format!("{}{}{:.2}", GREEN, BOLD, lexer_elapsed as f32 / 1000.0),
+        RESET,
+        format!("{}{}{:.2}", GREEN, BOLD, parser_elapsed as f32 / 1000.0),
+        RESET,
+        format!("{}{}{:.2}", GREEN, BOLD, eval_elapsed as f32 / 1000.0),
+        RESET,
+        format!("{}{}{}", GREEN, BOLD, (lexer_elapsed + parser_elapsed + eval_elapsed) as f32 / 1000.0),
+        RESET
+    );
 
     Ok((tokens.to_owned(), ast, result))
 }
@@ -90,7 +111,7 @@ pub fn parse_file(path: &String) -> Result<(), Box<dyn ErrorList>> {
 
     let (_, _, result) = interpret(content)?;
 
-    println!("\n----\n{:#?}\n----", result);
+    println!("{:?}", result);
 
     Ok(())
 }

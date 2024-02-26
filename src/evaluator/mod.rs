@@ -9,9 +9,10 @@ pub mod object;
 pub mod yaipl_std;
 
 pub struct Evaluator {
+    global_functions: Vec<ObjectValue>,
     global_env: Environment,
     env_stack: Vec<Environment>,
-    ast: ProgramTree
+    ast: ProgramTree,
 }
 
 create_error_list!(EvaluatorErrors, {});
@@ -24,23 +25,24 @@ impl Evaluator {
             _ => panic!("Invalid AST")
         };
 
-        let mut global_env = Environment::new();
-        yaipl_std::initialize(&mut global_env);
-
         Self {
+            global_env: Environment::new(),
+            global_functions: yaipl_std::initialize(),
             env_stack: Vec::new(),
-            global_env,
-            ast
+            ast,
         }
     }
 
     pub fn eval(&mut self) -> Result<ObjectValue, EvaluatorErrors> {
-        let mut result = ObjectValue::Void;
+        let mut result = (ObjectValue::Void, false);
         for statement in &self.ast.to_owned() {
             result = self.eval_statement(statement)?;
+            if result.1 {
+                break;
+            }
         }
 
-        Ok(result)
+        Ok(result.0)
     }
 
     fn get_env(&self) -> &Environment {
@@ -62,40 +64,49 @@ impl Evaluator {
     }
 
     fn end_env(&mut self) {
-        self.env_stack.pop();
+        if let Some(mut env) = self.env_stack.pop() {
+            env.destroy();
+        }
+        
     }
 
-    fn eval_statement(&mut self, statement: &Node) -> EvaluatorResult<ObjectValue> {
+    fn eval_statement(&mut self, statement: &Node) -> EvaluatorResult<(ObjectValue, bool)> {
         Ok(match statement {
-            Node::EmptyStatement(_) => ObjectValue::Void,
-            Node::ExpressionStatement(expr) => self.eval_expression(&expr.0)?,
-            Node::ReturnStatement(expr) => self.eval_return(&expr)?,
+            Node::EmptyStatement(_) => (ObjectValue::Void, false),
+            Node::ExpressionStatement(expr) => (self.eval_expression(&expr.0)?, false),
+            Node::ReturnStatement(expr) => (self.eval_return(&expr)?, true),
             Node::WhileStatement(expr) => self.eval_while(&expr)?,
             Node::IfStatement(expr) => self.eval_if(&expr)?,
             _ => error!(format!("Not implemented eval_statement for {:?}", statement))
         })
     }
 
-    fn eval_if(&mut self, expr: &IfStatement) -> EvaluatorResult<ObjectValue> {
+    fn eval_if(&mut self, expr: &IfStatement) -> EvaluatorResult<(ObjectValue, bool)> {
         let IfStatement(condition, block) = expr;
         
         let condition = self.eval_expression(condition)?;
         if condition.to_owned() == ObjectValue::Boolean(1) {
             self.start_env();
-            self.eval_block(&block.0)?;
+            let result = self.eval_block(&block.0)?;
             self.end_env();
+            return Ok(result);
         }
 
-        Ok(ObjectValue::Void)
+        Ok((ObjectValue::Void, false))
     }
 
-    fn eval_while(&mut self, expr: &WhileStatement) -> EvaluatorResult<ObjectValue> {
+    fn eval_while(&mut self, expr: &WhileStatement) -> EvaluatorResult<(ObjectValue, bool)> {
         let WhileStatement(condition, block) = expr;
-        let mut result = ObjectValue::Void;
+        let mut result = (ObjectValue::Void, false);
 
         self.start_env();
         while self.eval_expression(condition)?.to_owned() == ObjectValue::Boolean(1) {
-            result = self.eval_block(&block.0)?;
+            // result = self.eval_block(&block.0)?;
+            let eval_result = self.eval_block(&block.0)?;
+            if eval_result.1 {
+                result = eval_result;
+                break;
+            }
         }
         self.end_env();
 
@@ -103,13 +114,11 @@ impl Evaluator {
     }
 
     fn eval_return(&mut self, expr: &ReturnStatement) -> EvaluatorResult<ObjectValue> {
-        let result = if let Some(expr) = &expr.0 {
+        if let Some(expr) = &expr.0 {
             self.eval_expression(expr)
         } else {
             Ok(ObjectValue::Void)
-        };
-
-        result
+        }
     }
 
     fn eval_expression(&mut self, expr: &Expression) -> EvaluatorResult<ObjectValue> {
@@ -133,26 +142,34 @@ impl Evaluator {
             call_params
         ) = func;
 
-        let function = self.get_env().get_function_err(identifier.0.to_owned())?.to_owned();
+        let func = match self.get_env().get_func(&identifier.0) {
+            Some(func) => &func.value,
+            None => {
+                match yaipl_std::get_native_function(&self.global_functions, &identifier.0) {
+                    Some(func) => func,
+                    None => error!(format!("Function '{}' not found", identifier.0))
+                }
+            }
+        };
 
-        let result = match &function.value {
+        let result = match func.to_owned() {
             ObjectValue::Function(func) => {
-                let func = func.to_owned();
                 let block = func.body;
 
                 self.start_env();
 
                 for (param, value) in func.params.iter().zip(call_params.iter()) {
                     let value = self.eval_expression(value)?;
-                    self.get_env_mut().set_var(param.to_owned(), value.to_owned());
+                    self.get_env_mut().set(param.to_owned(), value.to_owned());
                 }
 
-                let result = self.eval_block(&block.0)?;
+                let (result, _) = self.eval_block(&block.0)?;
                 self.end_env();
                 result
             },
             ObjectValue::NativeFunction(func) => {
                 let mut objects: Vec<ObjectValue> = Vec::new();
+
                 for param in call_params {
                     let value = self.eval_expression(param)?;
                     objects.push(value);
@@ -166,12 +183,13 @@ impl Evaluator {
         Ok(result)
     }
 
-    fn eval_block(&mut self, block: &Vec<Node>) -> EvaluatorResult<ObjectValue> {
-        let mut result = ObjectValue::Void;
+    fn eval_block(&mut self, block: &Vec<Node>) -> EvaluatorResult<(ObjectValue, bool)> {
+        let mut result = (ObjectValue::Void, false);
 
         for statement in block {
             result = self.eval_statement(&statement)?;
-            if let Node::ReturnStatement(_) = statement {
+            if result.1 {
+                // println!("Early exit");
                 break;
             }
         }
@@ -188,13 +206,13 @@ impl Evaluator {
 
         let params: Vec<String> = params.to_owned().into_iter().map(|param| param.0).collect();
         let object = ObjectValue::Function(FunctionObject::new(params.to_owned(), *block.to_owned()));
-        self.get_env_mut().set_function(identifier.0.to_owned(), object);
+        self.get_env_mut().set(identifier.0.clone(), object);
 
         Ok(ObjectValue::Void)
     }
 
     fn eval_identifier(&mut self, identifier: &Identifier) -> EvaluatorResult<ObjectValue> {
-        let object = self.get_env().get_var_err(identifier.0.to_owned())?;
+        let object = self.get_env().get_result(&identifier.0)?;
         Ok(object.value.to_owned())
     }
 
@@ -205,7 +223,7 @@ impl Evaluator {
         ) = expr;
 
         let value = self.eval_expression(value)?;
-        self.get_env_mut().set_var(identifier.0.to_owned(), value.to_owned());
+        self.get_env_mut().set(identifier.0.to_owned(), value.to_owned());
         Ok(value)
     }
 
