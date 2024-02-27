@@ -62,7 +62,7 @@ pub enum ObjectValue {
     Integer(i32),
     Float(f32),
     Boolean(i8),
-    String(String),
+    String(*const String),
     Function(FunctionObject),
     NativeFunction(NativeFunctionObject),
     Void
@@ -74,7 +74,9 @@ impl ObjectValue {
             ObjectValue::Integer(i) => i.to_string(),
             ObjectValue::Float(f) => f.to_string(),
             ObjectValue::Boolean(b) => if b == &1 { "true".to_string() } else { "false".to_string() },
-            ObjectValue::String(s) => s.to_owned(),
+            ObjectValue::String(s) => unsafe {
+                (*s).as_ref().unwrap().to_string()
+            },
             ObjectValue::Void => "void".to_string(),
             ObjectValue::NativeFunction(func) => {
                 let params = func.params.join(", ");
@@ -103,7 +105,7 @@ impl ObjectValue {
 impl From<Literal> for ObjectValue {
     fn from(literal: Literal) -> Self {
         match literal {
-            Literal::String(s) => ObjectValue::String(s.0),
+            Literal::String(s) => ObjectValue::String(&s.0),
             Literal::Integer(i) => ObjectValue::Integer(i.0),
             Literal::Float(f) => ObjectValue::Float(f.0),
             Literal::Boolean(b) => ObjectValue::Boolean(b.0)
