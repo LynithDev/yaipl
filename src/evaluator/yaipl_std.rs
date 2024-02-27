@@ -54,7 +54,7 @@ pub fn initialize() -> Vec<ObjectValue> {
             String::from("")
         };
 
-        ObjectValue::String(&value)
+        ObjectValue::String(value)
     });
 
     function!("sleep", ["ms"], (args) => {

@@ -266,8 +266,8 @@ impl Evaluator {
 
         Ok(match op {
             ArithmeticOperator::Plus => operator_impl!(+, 
-                (ObjectValue::String(l), r) => ObjectValue::String(&format!("{:?}{}", l, r.to_string())),
-                (l, ObjectValue::String(r)) => ObjectValue::String(&format!("{}{:?}", l.to_string(), r))
+                (ObjectValue::String(l), r) => ObjectValue::String(format!("{}{}", l, r.to_string())),
+                (l, ObjectValue::String(r)) => ObjectValue::String(format!("{}{}", l.to_string(), r))
             ),
             ArithmeticOperator::Minus => operator_impl!(-),
             ArithmeticOperator::Multiply => operator_impl!(*),
