@@ -1,6 +1,6 @@
 use std::{fs, io::{stdin, stdout, Write}, process::exit};
 
-use another_interpreted_language::{errors::ErrorList, evaluator::{object::ObjectValue, Evaluator}, extract_type, lexer::{token::Tokens, Lexer}, parser::{ast::Node, Parser, ParserErrors, TokenMismatch}, utils::colors::{BLUE, BOLD, GREEN, MAGENTA, RED, RESET, UNDERLINE}};
+use another_interpreted_language::{errors::ErrorList, evaluator::{object::{Object, ObjectType}, Evaluator}, extract_type, lexer::{token::Tokens, Lexer}, parser::{ast::Node, Parser, ParserErrors, TokenMismatch}, utils::colors::{BLUE, BOLD, GREEN, MAGENTA, RED, RESET, UNDERLINE}};
 
 pub const NAME: &str = "YAIPL";
 pub const NAME_LONG: &str = "Yet Another Interpreted Programming Language";
@@ -66,38 +66,21 @@ pub fn repl() {
     }
 }
 
-fn interpret(input: String) -> Result<(Tokens, Node, ObjectValue), Box<dyn ErrorList>> {
-    let now = std::time::Instant::now();
-
+fn interpret(input: String) -> Result<(Tokens, Vec<Node>, Object), Box<dyn ErrorList>> {
     let mut lexer = Lexer::from(&input);
     let tokens = lexer.tokenize()?;
-    let lexer_elapsed = now.elapsed().as_micros();
 
     let mut parser = Parser::from(&tokens);
     let ast = parser.parse()?;
-    let parser_elapsed = now.elapsed().as_micros() - lexer_elapsed;
 
-    let mut evaluator = Evaluator::new(ast.to_owned());
-    let result = evaluator.eval()?;
-    let eval_elapsed = now.elapsed().as_micros() - parser_elapsed;
+    if let Node::Program(ast) = ast {
+        let mut evaluator = Evaluator::new(&ast);
+        let result = evaluator.eval()?;
 
-    println!("
-Lexer: {}{}ms
-Parser: {}{}ms
-Evaluator: {}{}ms
-Total: {}{}ms
-    ", 
-        format!("{}{}{:.2}", GREEN, BOLD, lexer_elapsed as f32 / 1000.0),
-        RESET,
-        format!("{}{}{:.2}", GREEN, BOLD, parser_elapsed as f32 / 1000.0),
-        RESET,
-        format!("{}{}{:.2}", GREEN, BOLD, eval_elapsed as f32 / 1000.0),
-        RESET,
-        format!("{}{}{}", GREEN, BOLD, (lexer_elapsed + parser_elapsed + eval_elapsed) as f32 / 1000.0),
-        RESET
-    );
+        return Ok((tokens.to_owned(), ast, result));
+    }
 
-    Ok((tokens.to_owned(), ast, result))
+    return Err(Box::new(ParserErrors::String("Could not interpret input".to_string())));
 }
 
 pub fn parse_file(path: &String) -> Result<(), Box<dyn ErrorList>> {
@@ -111,8 +94,8 @@ pub fn parse_file(path: &String) -> Result<(), Box<dyn ErrorList>> {
 
     let (_, _, result) = interpret(content)?;
 
-    if result != ObjectValue::Void {
-        println!("{:?}", result);
+    if !result.is(ObjectType::Void) {
+        println!("{}", result);
     }
 
     Ok(())

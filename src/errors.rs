@@ -2,6 +2,14 @@ use std::fmt::Debug;
 
 use crate::lexer::token::Position;
 
+
+
+
+
+// TODO: GET RID OF THIJS
+
+
+
 pub trait ErrorWithPosition {
     fn position(&self) -> Position;
 }

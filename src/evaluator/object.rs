@@ -2,12 +2,14 @@ use std::{alloc::{alloc, dealloc, Layout}, cmp::Ordering, fmt::Display, ptr::{ad
 
 use crate::parser::ast::FunctionDeclareExpression;
 
+// largely based on https://github.com/dannyvankooten/nederlang/blob/tree-walker/src/object.rs
+
 
 #[derive(Clone, Debug)]
 pub struct Object(*mut u8);
 
-unsafe impl Sync for Object {}
-unsafe impl Send for Object {}
+// unsafe impl Sync for Object {}
+// unsafe impl Send for Object {}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ObjectType {
@@ -15,7 +17,8 @@ pub enum ObjectType {
     Boolean,
     Function,
     Float,
-    String
+    String,
+    Void
 }
 
 const TAG_MASK: usize = 0b111;
@@ -25,6 +28,10 @@ const VALUE_SHIFT_BITS: usize = 3;
 impl<'a> Object {
     fn from_type(pointer: *mut u8, object_type: ObjectType) -> Self {
         Self((pointer as usize | object_type as usize) as _)
+    }
+
+    pub fn void() -> Self {
+        Self::from_type(0 as _, ObjectType::Void)
     }
 
     pub fn integer(value: i32) -> Self {
@@ -125,7 +132,8 @@ impl Display for Object {
             ObjectType::Boolean => write!(f, "Boolean({})", self.as_boolean().unwrap()),
             ObjectType::Function => write!(f, "Function"),
             ObjectType::Float => write!(f, "Float({})", self.as_f32().expect("Couldn't take as f32")),
-            ObjectType::String => write!(f, "String({})", self.as_str().expect("Couldn't take as str"))
+            ObjectType::String => write!(f, "String({})", self.as_str().expect("Couldn't take as str")),
+            ObjectType::Void => write!(f, "Void")
         }
     }
 }
@@ -200,7 +208,7 @@ impl PartialEq for Object {
         }
 
         match self.get_type() {
-            ObjectType::Boolean | ObjectType::Integer | ObjectType::Function => self.0 == other.0,
+            ObjectType::Boolean | ObjectType::Integer | ObjectType::Void | ObjectType::Function => self.0 == other.0,
             ObjectType::Float => self.as_f32().expect("Couldn't take as f32") == other.as_f32().expect("Couldn't take as f32"),
             ObjectType::String => self.as_str().expect("Couldn't take as str") == other.as_str().expect("Couldn't take as str")
         }
@@ -215,7 +223,8 @@ impl PartialOrd for Object {
             ObjectType::Boolean | ObjectType::Integer => self.0.partial_cmp(&other.0),
             ObjectType::Float => self.as_f32().expect("Couldn't take as f32").partial_cmp(&other.as_f32().expect("Couldn't take as f32")),
             ObjectType::String => self.as_str().expect("Couldn't take as string").partial_cmp(other.as_str().expect("Couldn't take as string")),
-            ObjectType::Function => None
+            ObjectType::Function => None,
+            ObjectType::Void => None,
         }
     }
 }
@@ -225,6 +234,17 @@ pub enum Error {
     TypeError(String),
     SyntaxError(String),
     ReferenceError(String),
+}
+
+impl std::error::Error for Error {}
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Error::TypeError(msg) => write!(f, "Type error: {}", msg),
+            Error::SyntaxError(msg) => write!(f, "Syntax error: {}", msg),
+            Error::ReferenceError(msg) => write!(f, "Reference error: {}", msg),
+        }
+    }
 }
 
 macro_rules! impl_arithmetic {
