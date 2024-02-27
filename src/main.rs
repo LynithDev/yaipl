@@ -82,10 +82,10 @@ fn interpret(input: String) -> Result<(Tokens, Node, ObjectValue), Box<dyn Error
     let eval_elapsed = now.elapsed().as_micros() - parser_elapsed;
 
     println!("
-    Lexer: {}{}ms
-    Parser: {}{}ms
-    Evaluator: {}{}ms
-    Total: {}{}ms
+Lexer: {}{}ms
+Parser: {}{}ms
+Evaluator: {}{}ms
+Total: {}{}ms
     ", 
         format!("{}{}{:.2}", GREEN, BOLD, lexer_elapsed as f32 / 1000.0),
         RESET,
@@ -111,7 +111,9 @@ pub fn parse_file(path: &String) -> Result<(), Box<dyn ErrorList>> {
 
     let (_, _, result) = interpret(content)?;
 
-    println!("{:?}", result);
+    if result != ObjectValue::Void {
+        println!("{:?}", result);
+    }
 
     Ok(())
 }

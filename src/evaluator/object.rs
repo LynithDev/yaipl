@@ -35,11 +35,11 @@ impl Object {
 #[derive(Clone, PartialEq, Debug)]
 pub struct FunctionObject {
     pub params: Vec<String>,
-    pub body: BlockStatement
+    pub body: *const BlockStatement
 }
 
 impl FunctionObject {
-    pub fn new(params: Vec<String>, body: BlockStatement) -> Self {
+    pub fn new(params: Vec<String>, body: &BlockStatement) -> Self {
         Self { params, body }
     }
 }

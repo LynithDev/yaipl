@@ -85,7 +85,7 @@ impl Evaluator {
         let IfStatement(condition, block) = expr;
         
         let condition = self.eval_expression(condition)?;
-        if condition.to_owned() == ObjectValue::Boolean(1) {
+        if condition == ObjectValue::Boolean(1) {
             self.start_env();
             let result = self.eval_block(&block.0)?;
             self.end_env();
@@ -100,7 +100,7 @@ impl Evaluator {
         let mut result = (ObjectValue::Void, false);
 
         self.start_env();
-        while self.eval_expression(condition)?.to_owned() == ObjectValue::Boolean(1) {
+        while self.eval_expression(condition)? == ObjectValue::Boolean(1) {
             // result = self.eval_block(&block.0)?;
             let eval_result = self.eval_block(&block.0)?;
             if eval_result.1 {
@@ -160,10 +160,12 @@ impl Evaluator {
 
                 for (param, value) in func.params.iter().zip(call_params.iter()) {
                     let value = self.eval_expression(value)?;
-                    self.get_env_mut().set(param.to_owned(), value.to_owned());
+                    self.get_env_mut().set(param.to_owned(), value);
                 }
 
-                let (result, _) = self.eval_block(&block.0)?;
+                let (result, _) = self.eval_block(unsafe {
+                    &block.as_ref().take().unwrap().0
+                })?;
                 self.end_env();
                 result
             },
@@ -205,8 +207,8 @@ impl Evaluator {
         ) = func;
 
         let params: Vec<String> = params.to_owned().into_iter().map(|param| param.0).collect();
-        let object = ObjectValue::Function(FunctionObject::new(params.to_owned(), *block.to_owned()));
-        self.get_env_mut().set(identifier.0.clone(), object);
+        let object = ObjectValue::Function(FunctionObject::new(params, &*block));
+        self.get_env_mut().set(identifier.0.to_owned(), object);
 
         Ok(ObjectValue::Void)
     }

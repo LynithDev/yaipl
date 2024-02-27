@@ -1,8 +1,0 @@
-test = () {
-    index = 0
-    while (index < 1_000_000) {
-        index += 1
-    }
-}
-
-test()
