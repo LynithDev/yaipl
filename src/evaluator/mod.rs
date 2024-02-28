@@ -1,7 +1,7 @@
 
 use std::error::Error;
 
-use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, BinaryExpression, Expression, ExpressionStatement, Node, Operator, Program, ProgramTree}};
+use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, BinaryExpression, Expression, Literal, Node, Operator}};
 
 use self::{environment::Environment, object::Object};
 
@@ -25,7 +25,7 @@ impl<'a> Evaluator<'a> {
         }
     }
 
-    pub fn eval(&'a mut self) -> EvaluatorResult<Object> {
+    pub fn eval(&'a mut self) -> Result<Object, EvaluatorErrors> {
         let mut result: Option<Object> = None;
         
         for node in self.ast {
@@ -44,8 +44,18 @@ impl<'a> Evaluator<'a> {
 
     fn eval_expression(&mut self, expression: &Expression) -> EvaluatorResult<Object> {
         Ok(match expression {
+            Expression::LiteralExpr(expression) => self.eval_literal(expression)?,
             Expression::BinaryExpr(expression) => self.eval_binary_expression(expression)?,
             _ => error!(format!("Not implemented {:#?}", expression))
+        })
+    }
+
+    fn eval_literal(&mut self, expression: &Literal) -> EvaluatorResult<Object> {
+        Ok(match expression {
+            Literal::Integer(num) => Object::integer(num.0),
+            Literal::Boolean(bool) => Object::boolean(if bool.0 <= 0 { false } else { true }),
+            Literal::Float(num) => Object::float(num.0),
+            Literal::String(str) => Object::string(&str.0),
         })
     }
 
@@ -55,12 +65,22 @@ impl<'a> Evaluator<'a> {
         let lhs = self.eval_expression(left)?;
         let rhs = self.eval_expression(right)?;
 
-        match operator {
+        let result = match operator {
             Operator::Arithmetic(op) => match op {
                 ArithmeticOperator::Plus => lhs.add(rhs),
-                _ => error!(format!("Not implemented {:#?}", op))
+                ArithmeticOperator::Minus => lhs.subtract(rhs),
+                ArithmeticOperator::Multiply => lhs.subtract(rhs),
+                ArithmeticOperator::Divide => lhs.divide(rhs),
+                ArithmeticOperator::Modulo => lhs.modulo(rhs),
+                ArithmeticOperator::Power => lhs.power(rhs),
             },
             _ => error!(format!("Not implemented {:#?}", operator))
+        };
+
+        match result {
+            Ok(object) => Ok(object),
+            Err(err) => error!(format!("{:?}", err))
         }
+
     }
 }

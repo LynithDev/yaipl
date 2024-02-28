@@ -63,6 +63,17 @@ impl<'a> Object {
         }
     }
 
+    pub fn to_string_with_type(&self) -> String {
+        match self.get_type() {
+            ObjectType::Integer => format!("Integer({})", self.as_integer().expect("Couldn't take as integer")),
+            ObjectType::Boolean => format!("Boolean({})", self.as_boolean().unwrap()),
+            ObjectType::Function => format!("Function"),
+            ObjectType::Float => format!("Float({})", self.as_f32().expect("Couldn't take as f32")),
+            ObjectType::String => format!("String(\"{}\")", self.as_str().expect("Couldn't take as str")),
+            ObjectType::Void => format!("Void")
+        }
+    }
+
     pub fn is(&self, object_type: ObjectType) -> bool {
         self.get_type() == object_type
     }
@@ -128,11 +139,11 @@ impl<'a> Object {
 impl Display for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.get_type() {
-            ObjectType::Integer => write!(f, "Integer({})", self.as_integer().expect("Couldn't take as integer")),
-            ObjectType::Boolean => write!(f, "Boolean({})", self.as_boolean().unwrap()),
+            ObjectType::Integer => write!(f, "{}", self.as_integer().expect("Couldn't take as integer")),
+            ObjectType::Boolean => write!(f, "{}", self.as_boolean().unwrap()),
             ObjectType::Function => write!(f, "Function"),
-            ObjectType::Float => write!(f, "Float({})", self.as_f32().expect("Couldn't take as f32")),
-            ObjectType::String => write!(f, "String({})", self.as_str().expect("Couldn't take as str")),
+            ObjectType::Float => write!(f, "{}", self.as_f32().expect("Couldn't take as f32")),
+            ObjectType::String => write!(f, "{}", self.as_str().expect("Couldn't take as str")),
             ObjectType::Void => write!(f, "Void")
         }
     }
@@ -301,11 +312,11 @@ impl Object {
         (_, ObjectType::String) => Object::string(&(lhs.to_string() + rhs.as_str().expect("Couldn't take as str")))
     });
 
-    impl_arithmetic!(sub, -);
-    impl_arithmetic!(mul, *);
-    impl_arithmetic!(div, /);
-    impl_arithmetic!(rem, %);
-    pub fn pow(self, rhs: Self) -> Result<Object, Error> {
+    impl_arithmetic!(subtract, -);
+    impl_arithmetic!(multiply, *);
+    impl_arithmetic!(divide, /);
+    impl_arithmetic!(modulo, %);
+    pub fn power(self, rhs: Self) -> Result<Object, Error> {
         let result = match (self.get_type(), rhs.get_type()) {
             (ObjectType::Integer, ObjectType::Integer) => Object::integer(self.as_integer().expect("Couldn't take as integer").pow(rhs.as_integer().expect("Couldn't take as integer") as u32)),
             (ObjectType::Float, ObjectType::Float) => Object::float(self.as_f32().expect("Couldn't take as f32").powf(rhs.as_f32().expect("Couldn't take as f32"))),
@@ -317,12 +328,12 @@ impl Object {
         Ok(result)
     }
 
-    impl_comparison!(gt, >);
-    impl_comparison!(gte, >=);
-    impl_comparison!(lt, <);
-    impl_comparison!(lte, <=);
-    impl_comparison!(eq, ==);
-    impl_comparison!(neq, !=);
+    impl_comparison!(greater_than, >);
+    impl_comparison!(greater_than_equal, >=);
+    impl_comparison!(lesser_than, <);
+    impl_comparison!(lesser_than_equal, <=);
+    impl_comparison!(equal, ==);
+    impl_comparison!(not_equal, !=);
 
     impl_logical!(and, &&);
     impl_logical!(or, ||);

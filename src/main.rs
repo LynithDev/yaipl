@@ -62,7 +62,7 @@ pub fn repl() {
             }
         };
 
-        println!("{:?}", result);
+        println!("{}", result.to_string_with_type());
     }
 }
 
