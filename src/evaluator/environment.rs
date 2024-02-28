@@ -9,8 +9,8 @@ pub struct Environment<'a> {
 impl<'a> Environment<'a> {
     pub fn new() -> Self {
         Self {
-            name_store: Vec::with_capacity(64),
-            value_store: Vec::with_capacity(64),
+            name_store: Vec::with_capacity(32),
+            value_store: Vec::with_capacity(32),
         }
     }
 
@@ -25,23 +25,5 @@ impl<'a> Environment<'a> {
         }
 
         None
-    }
-
-    pub fn get_func(&self, identifier: &String) -> Option<&Object> {
-        self.get(&format!("__f_{}", identifier))
-    }
-
-    pub fn get_result(&self, identifier: &String) -> Result<&Object, String> {
-        match self.get(identifier) {
-            Some(object) => Ok(object),
-            None => Err(format!("Undefined variable {:?}", identifier))
-        }
-    }
-
-    pub fn get_func_result(&self, identifier: &String) -> Result<&Object, String> {
-        match self.get_func(identifier) {
-            Some(object) => Ok(object),
-            None => Err(format!("Undefined function {:?}", identifier))
-        }
     }
 }

@@ -4,22 +4,24 @@ use crate::parser::ast::FunctionDeclareExpression;
 
 // largely based on https://github.com/dannyvankooten/nederlang/blob/tree-walker/src/object.rs
 
+pub const FUNCTION_PREFIX: &str = "__fc_";
 
 #[derive(Clone, Debug)]
 pub struct Object(*mut u8);
-
-// unsafe impl Sync for Object {}
-// unsafe impl Send for Object {}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ObjectType {
     Integer,
     Boolean,
-    Function,
     Float,
     String,
+    Function,
+    NativeFunction,
     Void
 }
+
+#[derive(Clone)]
+pub struct NativeFunctionObject<'a>(pub &'a str, pub Vec<&'a str>, pub &'a dyn Fn(Vec<Object>) -> Object);
 
 const TAG_MASK: usize = 0b111;
 const PTR_MASK: usize = !TAG_MASK;
@@ -49,6 +51,10 @@ impl<'a> Object {
         Self::from_type(func as *const FunctionDeclareExpression as _, ObjectType::Function)
     }
 
+    pub fn native_function(func: &'a NativeFunctionObject) -> Self {
+        Self::from_type(func as *const NativeFunctionObject as _, ObjectType::NativeFunction)
+    }
+
     pub fn string(value: &'a str) -> Self {
         YaiplString::from_str(value)
     }
@@ -67,9 +73,10 @@ impl<'a> Object {
         match self.get_type() {
             ObjectType::Integer => format!("Integer({})", self.as_integer().expect("Couldn't take as integer")),
             ObjectType::Boolean => format!("Boolean({})", self.as_boolean().unwrap()),
-            ObjectType::Function => format!("Function"),
             ObjectType::Float => format!("Float({})", self.as_f32().expect("Couldn't take as f32")),
             ObjectType::String => format!("String(\"{}\")", self.as_str().expect("Couldn't take as str")),
+            ObjectType::Function => format!("Function"),
+            ObjectType::NativeFunction => format!("NFunction"),
             ObjectType::Void => format!("Void")
         }
     }
@@ -95,6 +102,13 @@ impl<'a> Object {
     pub fn as_function(&self) -> Option<&'a FunctionDeclareExpression> {
         match self.get_type() {
             ObjectType::Function => Some(unsafe { self.get::<FunctionDeclareExpression>() }),
+            _ => None
+        }
+    }
+
+    pub fn as_native_function(&self) -> Option<&'a NativeFunctionObject> {
+        match self.get_type() {
+            ObjectType::NativeFunction => Some( unsafe { self.get::<NativeFunctionObject>() }),
             _ => None
         }
     }
@@ -142,6 +156,7 @@ impl Display for Object {
             ObjectType::Integer => write!(f, "{}", self.as_integer().expect("Couldn't take as integer")),
             ObjectType::Boolean => write!(f, "{}", self.as_boolean().unwrap()),
             ObjectType::Function => write!(f, "Function"),
+            ObjectType::NativeFunction => write!(f, "NFunction"),
             ObjectType::Float => write!(f, "{}", self.as_f32().expect("Couldn't take as f32")),
             ObjectType::String => write!(f, "{}", self.as_str().expect("Couldn't take as str")),
             ObjectType::Void => write!(f, "Void")
@@ -219,7 +234,9 @@ impl PartialEq for Object {
         }
 
         match self.get_type() {
-            ObjectType::Boolean | ObjectType::Integer | ObjectType::Void | ObjectType::Function => self.0 == other.0,
+            ObjectType::Boolean | ObjectType::Integer | ObjectType::Void 
+            | ObjectType::Function | ObjectType::NativeFunction => self.0 == other.0,
+
             ObjectType::Float => self.as_f32().expect("Couldn't take as f32") == other.as_f32().expect("Couldn't take as f32"),
             ObjectType::String => self.as_str().expect("Couldn't take as str") == other.as_str().expect("Couldn't take as str")
         }
@@ -235,6 +252,7 @@ impl PartialOrd for Object {
             ObjectType::Float => self.as_f32().expect("Couldn't take as f32").partial_cmp(&other.as_f32().expect("Couldn't take as f32")),
             ObjectType::String => self.as_str().expect("Couldn't take as string").partial_cmp(other.as_str().expect("Couldn't take as string")),
             ObjectType::Function => None,
+            ObjectType::NativeFunction => None,
             ObjectType::Void => None,
         }
     }

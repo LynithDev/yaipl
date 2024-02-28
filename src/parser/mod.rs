@@ -1,6 +1,6 @@
 use std::{error::Error, vec};
 
-use crate::{create_error, create_error_list, error, errors::ErrorWithPosition, lexer::token::{Position, Token, TokenLiteral, TokenType, Tokens}, parser::ast::Literal, utils::unwrap_result};
+use crate::{create_error, create_error_list, error, errors::ErrorWithPosition, evaluator::object::FUNCTION_PREFIX, lexer::token::{Position, Token, TokenLiteral, TokenType, Tokens}, parser::ast::Literal, utils::unwrap_result};
 
 use self::ast::{assignment_to_arithmetic, op_token_to_arithmetic, op_token_to_assignment, op_token_to_logical, BlockStatement, EmptyStatement, Expression, ExpressionStatement, Identifier, Node, Program};
 
@@ -131,8 +131,10 @@ impl<'a> Parser<'a> {
         Ok(arguments)
     }
 
-    fn func_declaration(&mut self, identifier: Identifier, parameters: Vec<Identifier>) -> ParserResult<Node> {
+    fn func_declaration(&mut self, mut identifier: Identifier, parameters: Vec<Identifier>) -> ParserResult<Node> {
         let body = self.block()?;
+
+        identifier.0 = format!("{}{}", FUNCTION_PREFIX, identifier.0);
 
         Ok(Node::ExpressionStatement(ExpressionStatement(
             Expression::FunctionDeclareExpr(
@@ -462,7 +464,7 @@ impl<'a> Parser<'a> {
 
     fn finish_call(&mut self, identifier: Token) -> ParserResult<Expression> {
         let name = match unwrap_result(identifier.value)? {
-            TokenLiteral::String(name) => name,
+            TokenLiteral::String(name) => format!("{}{}", FUNCTION_PREFIX, name),
             _ => error!(TokenMismatch {
                 err: "Expected identifier".to_owned(),
                 expected: vec![TokenType::String],

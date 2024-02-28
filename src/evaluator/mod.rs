@@ -1,9 +1,9 @@
 
 use std::error::Error;
 
-use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, Expression, Identifier, Literal, Node, Operator}};
+use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, BlockStatement, Expression, FunctionCallExpression, FunctionDeclareExpression, Identifier, Literal, Node, Operator}};
 
-use self::{environment::Environment, object::Object};
+use self::{environment::Environment, object::{Object, ObjectType}};
 
 pub mod environment;
 pub mod object;
@@ -18,11 +18,15 @@ pub struct Evaluator<'a> {
 }
 
 impl<'a> Evaluator<'a> {
-    pub fn new(ast: &'a Vec<Node>) -> Self {
-        Self { 
-            env: Environment::new(),
-            ast: &ast,
+    pub fn with_env(ast: &'a Vec<Node>, env: Environment<'a>) -> Self {
+        Self {
+            env,
+            ast
         }
+    }
+
+    pub fn new(ast: &'a Vec<Node>) -> Self {
+        Self::with_env(ast, Environment::new())
     }
 
     pub fn eval(&'a mut self) -> Result<Object, EvaluatorErrors> {
@@ -37,6 +41,7 @@ impl<'a> Evaluator<'a> {
 
     fn eval_statement(&mut self, node: &'a Node) -> EvaluatorResult<Object> {
         match node {
+            Node::EmptyStatement(_) => Ok(Object::void()),
             Node::ExpressionStatement(expr) => self.eval_expression(&expr.0),
             _ => error!(format!("Not implemented statement {:?}", node))
         }
@@ -48,8 +53,74 @@ impl<'a> Evaluator<'a> {
             Expression::IdentifierExpr(expression) => self.eval_identifier(expression)?,
             Expression::LiteralExpr(expression) => self.eval_literal(expression)?,
             Expression::BinaryExpr(expression) => self.eval_binary_expression(expression)?,
+            Expression::FunctionDeclareExpr(expression) => self.eval_func_declare_expression(expression)?,
+            Expression::FunctionCallExpr(expression) => self.eval_func_call_expression(expression)?,
             _ => error!(format!("Not implemented {:#?}", expression))
         })
+    }
+
+    fn new_scope(&self) -> Evaluator {
+        Evaluator::with_env(self.ast, self.env.clone())
+    }
+
+    fn destroy_scope(&self, evaluator: Evaluator) {
+        std::mem::drop(evaluator)
+    }
+
+    fn eval_func_call_expression(&mut self, expression: &'a FunctionCallExpression) -> EvaluatorResult<Object> {
+        let FunctionCallExpression(identifier, args) = expression;
+        let mut result = Object::void();
+        
+        if let Some(object) = self.env.get(&identifier.0) {
+            match object.get_type() {
+                ObjectType::Function => {
+                    let function = object.as_function().expect("Couldn't take as function");
+                    let mut built_args: Vec<Object> = Vec::new();
+                    for arg in args {
+                        built_args.push(self.eval_expression(arg)?);
+                    }
+            
+                    let mut scope = self.new_scope();
+                    for (index, arg) in built_args.iter().enumerate() {
+                        let identifier = &function.1[index];
+                        scope.env.set(&identifier.0, arg.to_owned());
+                    }
+                    
+                    result = scope.eval_block(&function.2)?;
+                    self.destroy_scope(scope);
+                },
+                ObjectType::NativeFunction => {
+                    // let function = object.as_native_function().expect("Couldn't take as natve function");
+                    
+                    // let mut built_args: Vec<Object> = Vec::new();
+                    // for arg in args {
+                    //     built_args.push(self.eval_expression(arg)?);
+                    // }
+                    
+                    // (function.2)(built_args);
+                },
+                _ => error!("not function :(")
+            }
+        }
+        
+        Ok(result)
+    }
+
+    fn eval_block(&mut self, expression: &'a BlockStatement) -> EvaluatorResult<Object> {
+        let mut result = Object::void();
+        
+        for statement in &expression.0 {
+            result = self.eval_statement(statement)?;
+        }
+
+        Ok(result)
+    }
+
+    fn eval_func_declare_expression(&mut self, expression: &'a FunctionDeclareExpression) -> EvaluatorResult<Object> {
+        let object = Object::function(expression);
+        self.env.set(&expression.0.0, object);
+
+        Ok(Object::void())
     }
 
     fn eval_identifier(&mut self, expression: &Identifier) -> EvaluatorResult<Object> {
