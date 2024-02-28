@@ -1,7 +1,7 @@
 
 use std::error::Error;
 
-use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, BinaryExpression, Expression, Literal, Node, Operator}};
+use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, Expression, Identifier, Literal, Node, Operator}};
 
 use self::{environment::Environment, object::Object};
 
@@ -35,19 +35,38 @@ impl<'a> Evaluator<'a> {
         Ok(result.unwrap_or(Object::void()))
     } 
 
-    fn eval_statement(&mut self, node: &Node) -> EvaluatorResult<Object> {
+    fn eval_statement(&mut self, node: &'a Node) -> EvaluatorResult<Object> {
         match node {
             Node::ExpressionStatement(expr) => self.eval_expression(&expr.0),
-            _ => Ok(Object::void())
+            _ => error!(format!("Not implemented statement {:?}", node))
         }
     }
 
-    fn eval_expression(&mut self, expression: &Expression) -> EvaluatorResult<Object> {
+    fn eval_expression(&mut self, expression: &'a Expression) -> EvaluatorResult<Object> {
         Ok(match expression {
+            Expression::AssignmentExpr(expression) => self.eval_assignment_expression(expression)?,
+            Expression::IdentifierExpr(expression) => self.eval_identifier(expression)?,
             Expression::LiteralExpr(expression) => self.eval_literal(expression)?,
             Expression::BinaryExpr(expression) => self.eval_binary_expression(expression)?,
             _ => error!(format!("Not implemented {:#?}", expression))
         })
+    }
+
+    fn eval_identifier(&mut self, expression: &Identifier) -> EvaluatorResult<Object> {
+        let Identifier(identifier) = expression;
+        
+        match self.env.get(identifier) {
+            Some(object) => Ok(object.to_owned()),
+            None => error!("Unidentified variable")
+        }
+    }
+
+    fn eval_assignment_expression(&mut self, expression: &'a Assignment) -> EvaluatorResult<Object> {
+        let Assignment(identifier, literal) = expression;
+
+        let value = self.eval_expression(&literal)?;
+        self.env.set(&identifier.0, value);
+        Ok(Object::void())
     }
 
     fn eval_literal(&mut self, expression: &Literal) -> EvaluatorResult<Object> {
@@ -59,7 +78,7 @@ impl<'a> Evaluator<'a> {
         })
     }
 
-    fn eval_binary_expression(&mut self, expression: &BinaryExpression) -> EvaluatorResult<Object> {
+    fn eval_binary_expression(&mut self, expression: &'a BinaryExpression) -> EvaluatorResult<Object> {
         let BinaryExpression(left, operator, right) = expression;
 
         let lhs = self.eval_expression(left)?;

@@ -2,8 +2,8 @@ use super::object::Object;
 
 #[derive(Clone, Debug)]
 pub struct Environment<'a> {
-    pub name_store: Vec<&'a str>,
-    pub value_store: Vec<Object>,
+    name_store: Vec<&'a str>,
+    value_store: Vec<Object>,
 }
 
 impl<'a> Environment<'a> {
