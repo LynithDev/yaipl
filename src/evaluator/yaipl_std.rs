@@ -1,72 +1,72 @@
-// use crate::evaluator::object::{NativeFunctionObject, ObjectValue};
+use super::object::{NativeFunctionObject, Object, ObjectType};
 
-// pub fn get_native_function<'a>(list: &'a Vec<ObjectValue>, name: &String) -> Option<&'a ObjectValue> {
-//     list.iter().find(|func| {
-//         if let ObjectValue::NativeFunction(native) = func {
-//             native.name == *name
-//         } else {
-//             false
-//         }
-//     })
-// }
+pub fn get_native_function<'a>(list: &'a Vec<Object>, name: &String) -> Option<&'a Object> {
+    list.iter().find(|func| {
+        if func.is(ObjectType::NativeFunction) {
+            func.as_native_function().expect("").0 == name
+        } else {
+            false
+        }
+    })
+}
 
-// pub fn initialize() -> Vec<ObjectValue> {
-//     let mut functions: Vec<ObjectValue> = Vec::new();
+pub fn initialize() -> Vec<Object> {
+    let mut functions: Vec<Object> = Vec::new();
 
-//     macro_rules! function {
-//         ($name:tt, [$($args:tt),*], ($arg_param:tt) => $body:block) => {
-//             {
-//                 functions.push(ObjectValue::NativeFunction(
-//                     NativeFunctionObject::new($name.to_string(), vec!($($args.to_string()),*), |$arg_param| {
-//                         $body
-//                     })
-//                 ))
-//             }
-//         };
-//     }
+    macro_rules! function {
+        ($name:tt, [$($args:tt),*], ($arg_param:tt) => $body:block) => {
+            {
+                functions.push(Object::native_function(
+                    &NativeFunctionObject($name, vec!($($args),*), |$arg_param| {
+                        $body
+                    })
+                ))
+            }
+        };
+    }
 
-//     function!("print", ["arg"], (args) => {
-//         let value = if args.len() > 0 {
-//             args[0].to_string()
-//         } else {
-//             String::from("")
-//         };
+    function!("print", ["arg"], (args) => {
+        let value = if args.len() > 0 {
+            args[0].to_string()
+        } else {
+            String::from("")
+        };
 
-//         print!("{}", value);
-//         ObjectValue::Void
-//     });
+        print!("{}", value);
+        Object::void()
+    });
 
-//     function!("println", ["arg"], (args) => {
-//         let value = if args.len() > 0 {
-//             args[0].to_string()
-//         } else {
-//             String::from("")
-//         };
+    function!("println", ["arg"], (args) => {
+        let value = if args.len() > 0 {
+            args[0].to_string()
+        } else {
+            String::from("")
+        };
 
-//         println!("{}", value);
-//         ObjectValue::Void
-//     });
+        println!("{}", value);
+        Object::void()
+    });
 
-//     function!("typeof", ["arg"], (args) => {
-//         let value = if args.len() > 0 {
-//             args[0].name()
-//         } else {
-//             String::from("")
-//         };
+    function!("typeof", ["arg"], (args) => {
+        let value: String = if args.len() > 0 {
+            args[0].get_type().to_string()
+        } else {
+            String::new()
+        };
 
-//         ObjectValue::String(value)
-//     });
+        Object::string(&value)
+    });
 
-//     function!("sleep", ["ms"], (args) => {
-//         let ms = if args.len() > 0 {
-//             args[0].to_string().parse::<u64>().unwrap()
-//         } else {
-//             0
-//         };
+    // function!("sleep", ["ms"], (args) => {
+    //     let ms = if args.len() > 0 {
+    //         args[0].to_string().parse::<u64>().unwrap()
+    //     } else {
+    //         0
+    //     };
 
-//         std::thread::sleep(std::time::Duration::from_millis(ms));
-//         ObjectValue::Void
-//     });
+    //     std::thread::sleep(std::time::Duration::from_millis(ms));
+    //     ObjectValue::Void
+    // });
 
-//     functions
-// }
+    functions
+}

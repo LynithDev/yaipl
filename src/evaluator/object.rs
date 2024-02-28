@@ -20,8 +20,22 @@ pub enum ObjectType {
     Void
 }
 
+impl Display for ObjectType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ObjectType::Boolean => f.write_str("boolean"),
+            ObjectType::Float => f.write_str("float"),
+            ObjectType::Integer => f.write_str("integer"),
+            ObjectType::Function => f.write_str("function"),
+            ObjectType::NativeFunction => f.write_str("nfunction"),
+            ObjectType::String => f.write_str("string"),
+            ObjectType::Void => f.write_str("void")
+        }
+    }
+}
+
 #[derive(Clone)]
-pub struct NativeFunctionObject<'a>(pub &'a str, pub Vec<&'a str>, pub &'a dyn Fn(Vec<Object>) -> Object);
+pub struct NativeFunctionObject<'a>(pub &'a str, pub Vec<&'a str>, pub fn(Vec<Object>) -> Object);
 
 const TAG_MASK: usize = 0b111;
 const PTR_MASK: usize = !TAG_MASK;

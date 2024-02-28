@@ -26,7 +26,13 @@ impl<'a> Evaluator<'a> {
     }
 
     pub fn new(ast: &'a Vec<Node>) -> Self {
-        Self::with_env(ast, Environment::new())
+        let env = Environment::new();
+        
+        for func in yaipl_std::initialize() {
+            if let 
+        }
+
+        Self::with_env(ast, )
     }
 
     pub fn eval(&'a mut self) -> Result<Object, EvaluatorErrors> {
@@ -70,8 +76,11 @@ impl<'a> Evaluator<'a> {
     fn eval_func_call_expression(&mut self, expression: &'a FunctionCallExpression) -> EvaluatorResult<Object> {
         let FunctionCallExpression(identifier, args) = expression;
         let mut result = Object::void();
-        
-        if let Some(object) = self.env.get(&identifier.0) {
+        let object = self.env.get(&identifier.0);
+
+        if let Some(object) = object {
+            let object = object.to_owned();
+            
             match object.get_type() {
                 ObjectType::Function => {
                     let function = object.as_function().expect("Couldn't take as function");
@@ -90,14 +99,13 @@ impl<'a> Evaluator<'a> {
                     self.destroy_scope(scope);
                 },
                 ObjectType::NativeFunction => {
-                    // let function = object.as_native_function().expect("Couldn't take as natve function");
+                    let function = object.as_native_function().expect("Couldn't take as natve function");
+                    let mut built_args: Vec<Object> = Vec::new();
+                    for arg in args {
+                        built_args.push(self.eval_expression(arg)?);
+                    }
                     
-                    // let mut built_args: Vec<Object> = Vec::new();
-                    // for arg in args {
-                    //     built_args.push(self.eval_expression(arg)?);
-                    // }
-                    
-                    // (function.2)(built_args);
+                    (function.2)(built_args);
                 },
                 _ => error!("not function :(")
             }
@@ -123,7 +131,7 @@ impl<'a> Evaluator<'a> {
         Ok(Object::void())
     }
 
-    fn eval_identifier(&mut self, expression: &Identifier) -> EvaluatorResult<Object> {
+    fn eval_identifier(&self, expression: &Identifier) -> EvaluatorResult<Object> {
         let Identifier(identifier) = expression;
         
         match self.env.get(identifier) {
@@ -140,7 +148,7 @@ impl<'a> Evaluator<'a> {
         Ok(Object::void())
     }
 
-    fn eval_literal(&mut self, expression: &Literal) -> EvaluatorResult<Object> {
+    fn eval_literal(&self, expression: &Literal) -> EvaluatorResult<Object> {
         Ok(match expression {
             Literal::Integer(num) => Object::integer(num.0),
             Literal::Boolean(bool) => Object::boolean(if bool.0 <= 0 { false } else { true }),
