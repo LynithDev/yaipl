@@ -117,7 +117,6 @@ create_struct!(Variable, Identifier, Box<Expression>);
 create_struct!(Assignment, Identifier, Box<Expression>);
 create_struct!(Identifier, String);
 create_struct!(BinaryExpression, Box<Expression>, Operator, Box<Expression>);
-create_struct!(LogicalExpression, Box<Expression>, LogicalOperator, Box<Expression>);
 create_struct!(UnaryExpression, Operator, Box<Expression>);
 create_struct!(FunctionCallExpression, Identifier, Vec<Expression>);
 create_struct!(FunctionDeclareExpression, Identifier, Vec<Identifier>, Box<BlockStatement>);
@@ -129,7 +128,6 @@ pub enum Expression {
     LiteralExpr(Literal),
     IdentifierExpr(Identifier),
     BinaryExpr(BinaryExpression),
-    LogicalExpr(LogicalExpression),
     UnaryExpr(UnaryExpression),
     GroupExpr(Box<Expression>),
     BlockExpr(BlockStatement),

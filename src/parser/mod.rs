@@ -282,9 +282,9 @@ impl<'a> Parser<'a> {
 
         while self.matches(TokenType::Or) {
             let right = self.and()?;
-            expression = Expression::LogicalExpr(ast::LogicalExpression(
+            expression = Expression::BinaryExpr(ast::BinaryExpression(
                 Box::new(expression), 
-                ast::LogicalOperator::Or, 
+                ast::Operator::Logical(ast::LogicalOperator::Or), 
                 Box::new(right)
             ));
         }
@@ -297,9 +297,9 @@ impl<'a> Parser<'a> {
 
         while self.matches(TokenType::And) {
             let right = self.equality()?;
-            expression = Expression::LogicalExpr(ast::LogicalExpression(
+            expression = Expression::BinaryExpr(ast::BinaryExpression(
                 Box::new(expression), 
-                ast::LogicalOperator::And, 
+                ast::Operator::Logical(ast::LogicalOperator::And), 
                 Box::new(right)
             ));
         }
@@ -348,10 +348,10 @@ impl<'a> Parser<'a> {
 
             let comparison_operator = unwrap_result(op_token_to_logical(&operator))?;
 
-            expression = Expression::LogicalExpr(ast::LogicalExpression(
-                Box::new(expression),
-                comparison_operator,
-                Box::new(right),
+            expression = Expression::BinaryExpr(ast::BinaryExpression(
+                Box::new(expression), 
+                ast::Operator::Logical(comparison_operator), 
+                Box::new(right)
             ));
         }
 

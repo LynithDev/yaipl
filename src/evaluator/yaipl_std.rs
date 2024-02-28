@@ -1,26 +1,17 @@
-use super::object::{NativeFunctionObject, Object, ObjectType};
+use super::{environment::Environment, object::{NativeFunctionObject, Object}};
 
-pub fn get_native_function<'a>(list: &'a Vec<Object>, name: &String) -> Option<&'a Object> {
-    list.iter().find(|func| {
-        if func.is(ObjectType::NativeFunction) {
-            func.as_native_function().expect("").0 == name
-        } else {
-            false
-        }
-    })
-}
-
-pub fn initialize() -> Vec<Object> {
-    let mut functions: Vec<Object> = Vec::new();
+pub fn initialize(env: &mut Environment) {
 
     macro_rules! function {
-        ($name:tt, [$($args:tt),*], ($arg_param:tt) => $body:block) => {
+        ($name:literal, [$($args:tt),*], ($arg_param:tt) => $body:block) => {
             {
-                functions.push(Object::native_function(
-                    &NativeFunctionObject($name, vec!($($args),*), |$arg_param| {
+                let function = Object::native_function(
+                    &NativeFunctionObject(concat!("__fc_", $name), vec!($($args),*), |$arg_param| {
                         $body
                     })
-                ))
+                );
+
+                env.set(concat!("__fc_", $name), function);
             }
         };
     }
@@ -57,16 +48,14 @@ pub fn initialize() -> Vec<Object> {
         Object::string(&value)
     });
 
-    // function!("sleep", ["ms"], (args) => {
-    //     let ms = if args.len() > 0 {
-    //         args[0].to_string().parse::<u64>().unwrap()
-    //     } else {
-    //         0
-    //     };
+    function!("sleep", ["ms"], (args) => {
+        let ms = if args.len() > 0 {
+            args[0].to_string().parse::<u64>().unwrap()
+        } else {
+            0
+        };
 
-    //     std::thread::sleep(std::time::Duration::from_millis(ms));
-    //     ObjectValue::Void
-    // });
-
-    functions
+        std::thread::sleep(std::time::Duration::from_millis(ms));
+        Object::void()
+    });
 }
