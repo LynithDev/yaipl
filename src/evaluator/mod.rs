@@ -61,7 +61,6 @@ impl<'a> Evaluator<'a> {
             Expression::IdentifierExpr(expression) => self.eval_identifier(expression)?,
             Expression::LiteralExpr(expression) => self.eval_literal(expression)?,
             Expression::UnaryExpr(expression) => self.eval_unary_expression(expression)?,
-            _ => error!(format!("Not implemented {:#?}", expression))
         })
     }
 
