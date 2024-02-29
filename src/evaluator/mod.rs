@@ -1,7 +1,7 @@
 
 use std::error::Error;
 
-use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, BlockStatement, Expression, FunctionCallExpression, FunctionDeclareExpression, Identifier, IfStatement, Literal, LogicalOperator, Node, Operator, ReturnStatement, UnaryExpression}};
+use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, BlockStatement, Expression, FunctionCallExpression, FunctionDeclareExpression, Identifier, IfStatement, Literal, LogicalOperator, Node, Operator, ReturnStatement, UnaryExpression, WhileStatement}};
 
 use self::{environment::Environment, object::{Object, ObjectType}};
 
@@ -52,8 +52,25 @@ impl<'a> Evaluator<'a> {
             Node::ExpressionStatement(expr) => Ok((self.eval_expression(&expr.0)?, false)),
             Node::IfStatement(statement) => self.eval_if(statement),
             Node::ReturnStatement(statement) => self.eval_return(statement),
+            Node::WhileStatement(statement) => self.eval_while(statement),
             _ => error!(format!("Not implemented statement {:#?}", node))
         }
+    }
+
+    fn eval_while(&mut self, statement: &'a WhileStatement) -> StatementResult<Object> {
+        let WhileStatement(condition, block) = statement;
+        let mut result = (Object::void(), false);
+
+        let mut evaluator = self.new_scope();
+        while evaluator.eval_expression(condition)?.as_boolean().expect("Couldn't take as boolean") {
+            result = evaluator.eval_block(block)?;
+            if result.1 {
+                break;
+            }
+        }
+        self.destroy_scope(evaluator);
+
+        Ok(result)
     }
 
     fn eval_return(&mut self, statement: &'a ReturnStatement) -> StatementResult<Object> {

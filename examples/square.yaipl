@@ -1,0 +1,12 @@
+y = 0
+while y < 10 {
+
+    x = 0
+    while x < 10 {
+        print("* ")
+        x += 1
+    }
+
+    print("\n")
+    y += 1
+}
