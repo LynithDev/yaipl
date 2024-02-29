@@ -189,8 +189,6 @@ impl Lexer {
         self.tokens.push(
             Token::from_pos(TokenType::EndOfFile, self.get_pos(), self.get_pos_offset(1))
         );
-        
-        println!("{}", Self::tokens_to_string(&self.tokens));
 
         Ok(&self.tokens)
     }

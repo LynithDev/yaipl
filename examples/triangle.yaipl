@@ -2,7 +2,7 @@ y = 0;
 while y < 10 {
 
     x = 0;
-    while x < 10 {
+    while x < y + 1 {
         print("* ");
         x += 1;
     }
