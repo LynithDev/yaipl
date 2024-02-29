@@ -53,6 +53,10 @@ impl Lexer {
     pub fn tokenize(&mut self) -> Result<&Tokens, LexerErrors> {
         while !self.chars.is_empty() {
             let mut char = self.remove_char(0)?;
+
+            if char == '\n' {
+                continue;
+            }
     
             let matched_tokens: Tokens = match self.match_char(char) {
                 Some((token, len)) => vec![
@@ -186,6 +190,8 @@ impl Lexer {
             Token::from_pos(TokenType::EndOfFile, self.get_pos(), self.get_pos_offset(1))
         );
         
+        println!("{}", Self::tokens_to_string(&self.tokens));
+
         Ok(&self.tokens)
     }
 
@@ -351,7 +357,7 @@ impl Lexer {
                 }
             }
     
-            '\n' | ';' => (TokenType::EndOfLine, 1),
+            ';' => (TokenType::EndOfLine, 1),
             _ => return None
         })
     }
