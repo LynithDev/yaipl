@@ -34,8 +34,8 @@ impl Display for ObjectType {
     }
 }
 
-#[derive(Clone)]
-pub struct NativeFunctionObject<'a>(pub &'a str, pub Vec<&'a str>, pub fn(Vec<Object>) -> Object);
+#[derive(Clone, Debug)]
+pub struct NativeFunctionObject<'a>(pub &'a str, pub Vec<String>, pub fn(Vec<Object>) -> Object);
 
 const TAG_MASK: usize = 0b111;
 const PTR_MASK: usize = !TAG_MASK;
@@ -122,7 +122,7 @@ impl<'a> Object {
 
     pub fn as_native_function(&self) -> Option<&'a NativeFunctionObject> {
         match self.get_type() {
-            ObjectType::NativeFunction => Some( unsafe { self.get::<NativeFunctionObject>() }),
+            ObjectType::NativeFunction => Some(unsafe { self.get::<NativeFunctionObject>() } ),
             _ => None
         }
     }

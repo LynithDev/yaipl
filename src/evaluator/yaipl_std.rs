@@ -1,17 +1,19 @@
 use super::{environment::Environment, object::{NativeFunctionObject, Object}};
 
-pub fn initialize(env: &mut Environment) {
-
+pub fn initialize<'a>(env: &mut Environment<'a>) {
     macro_rules! function {
         ($name:literal, [$($args:tt),*], ($arg_param:tt) => $body:block) => {
             {
-                let function = Object::native_function(
-                    &NativeFunctionObject(concat!("__fc_", $name), vec!($($args),*), |$arg_param| {
-                        $body
-                    })
-                );
+                let function = NativeFunctionObject(concat!("__fc_", $name), vec!($($args.to_string()),*), |$arg_param| {
+                    $body
+                });
 
-                env.set(concat!("__fc_", $name), function);
+                let func_box = Box::new(function);
+                let func_ptr = Box::into_raw(func_box);
+
+                let object = Object::native_function(unsafe { &*func_ptr });
+
+                env.set(concat!("__fc_", $name), object);
             }
         };
     }
