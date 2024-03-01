@@ -130,6 +130,7 @@ impl Lexer {
                             let (token_type, value) = match word.as_str() {
                                 "true" => (TokenType::Boolean, Some(TokenLiteral::Boolean(1))),
                                 "false" => (TokenType::Boolean, Some(TokenLiteral::Boolean(0))),
+                                "null" => (TokenType::Null, None),
         
                                 // Keywords
                                 "if" => (TokenType::If, None),

@@ -19,6 +19,17 @@ impl<'a> Environment<'a> {
         self.value_store.push(object);
     }
 
+    pub fn get_by_index(&self, index: usize) -> Option<(String, Object)> {
+        let name = self.name_store.get(index);
+        let value = self.value_store.get(index);
+
+        if name.is_some() && value.is_some() {
+            return Some(((*name.expect("Couldn't take name")).to_owned(), value.expect("Couldn't take value").to_owned()));
+        }
+
+        None
+    }
+
     pub fn get(&self, identifier: &String) -> Option<&Object> {
         if let Some(pos) = self.name_store.iter().rev().position(|name| name == identifier) {
             return Some(&self.value_store[self.value_store.len() - 1 - pos]);

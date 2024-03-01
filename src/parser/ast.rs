@@ -11,13 +11,15 @@ create_struct!(StringLiteral, String);
 create_struct!(IntegerLiteral, i32);
 create_struct!(FloatLiteral, f32);
 create_struct!(BooleanLiteral, i8);
+create_struct!(Null);
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Literal {
     String(StringLiteral),
     Integer(IntegerLiteral),
     Float(FloatLiteral),
-    Boolean(BooleanLiteral)
+    Boolean(BooleanLiteral),
+    Null
 }
 
 #[derive(Debug, PartialEq, Clone)]

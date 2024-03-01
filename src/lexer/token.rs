@@ -73,7 +73,7 @@ pub enum TokenType {
     Float,
     Boolean,
     String,
-    List,
+    Null,
     
     // Operators
     Plus,

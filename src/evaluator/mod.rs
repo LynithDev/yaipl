@@ -33,7 +33,7 @@ impl<'a> Evaluator<'a> {
         Self::with_env(ast, env)
     }
 
-    pub fn eval(&'a mut self) -> Result<Object, EvaluatorErrors> {
+    pub fn eval(&mut self) -> Result<Object, EvaluatorErrors> {
         let mut result: Option<(Object, bool)> = None;
         
         for node in self.ast {
@@ -126,14 +126,19 @@ impl<'a> Evaluator<'a> {
         let condition = self.eval_expression(condition)?;
 
         if condition.is(ObjectType::Boolean) {
-            if condition.as_boolean().expect("Couldn't take as boolean") {
-                return self.eval_block(block);
-            }
+            let mut evaluator = self.new_scope();
 
-            if let Some(elif) = elif {
-                return self.eval_statement(&elif);
-            }
-        }
+            let result = if condition.as_boolean().expect("Couldn't take as boolean") {
+                evaluator.eval_block(block)
+            } else if let Some(elif) = elif {
+                evaluator.eval_statement(&elif)
+            } else {
+                Ok((Object::void(), false))
+            };
+
+            self.destroy_scope(evaluator);
+            return result;
+        };
 
         Ok((Object::void(), false))
     }
@@ -152,12 +157,13 @@ impl<'a> Evaluator<'a> {
         })
     }
 
+    // TODO: Scope doesn't work properly. Global variables modified in scopes are not reflected in the global scope
     fn new_scope(&self) -> Evaluator {
         Evaluator::with_env(self.ast, self.env.clone())
     }
 
     fn destroy_scope(&self, evaluator: Evaluator) {
-        std::mem::drop(evaluator)
+        std::mem::drop(evaluator);
     }
 
     fn eval_func_call_expression(&mut self, expression: &'a FunctionCallExpression) -> EvaluatorResult<Object> {
@@ -246,6 +252,7 @@ impl<'a> Evaluator<'a> {
             Literal::Boolean(bool) => Object::boolean(if bool.0 <= 0 { false } else { true }),
             Literal::Float(num) => Object::float(num.0),
             Literal::String(str) => Object::string(&str.0),
+            Literal::Null => Object::null(),
         })
     }
 

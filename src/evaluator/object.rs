@@ -15,6 +15,7 @@ pub enum ObjectType {
     Boolean,
     Float,
     String,
+    Null,
     Function,
     NativeFunction,
     Void
@@ -24,11 +25,12 @@ impl Display for ObjectType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ObjectType::Boolean => f.write_str("boolean"),
-            ObjectType::Float => f.write_str("float"),
             ObjectType::Integer => f.write_str("integer"),
+            ObjectType::Float => f.write_str("float"),
+            ObjectType::String => f.write_str("string"),
+            ObjectType::Null => f.write_str("null"),
             ObjectType::Function => f.write_str("function"),
             ObjectType::NativeFunction => f.write_str("nfunction"),
-            ObjectType::String => f.write_str("string"),
             ObjectType::Void => f.write_str("void")
         }
     }
@@ -44,6 +46,10 @@ const VALUE_SHIFT_BITS: usize = 3;
 impl<'a> Object {
     fn from_type(pointer: *mut u8, object_type: ObjectType) -> Self {
         Self((pointer as usize | object_type as usize) as _)
+    }
+
+    pub fn null() -> Self {
+        Self::from_type(0 as _, ObjectType::Null)
     }
 
     pub fn void() -> Self {
@@ -80,18 +86,6 @@ impl<'a> Object {
     pub fn get_type(&self) -> ObjectType {
         unsafe {
             std::mem::transmute((self.0 as usize & TAG_MASK) as u8)
-        }
-    }
-
-    pub fn to_string_with_type(&self) -> String {
-        match self.get_type() {
-            ObjectType::Integer => format!("Integer({})", self.as_integer().expect("Couldn't take as integer")),
-            ObjectType::Boolean => format!("Boolean({})", self.as_boolean().unwrap()),
-            ObjectType::Float => format!("Float({})", self.as_f32().expect("Couldn't take as f32")),
-            ObjectType::String => format!("String(\"{}\")", self.as_str().expect("Couldn't take as str")),
-            ObjectType::Function => format!("Function"),
-            ObjectType::NativeFunction => format!("NFunction"),
-            ObjectType::Void => format!("Void")
         }
     }
 
@@ -162,18 +156,29 @@ impl<'a> Object {
             }
         }
     }
+
+    pub fn to_string_with_type(&self) -> String {
+        match self.get_type() {
+            ObjectType::Integer => format!("integer({})", self.as_integer().expect("Couldn't take as integer")),
+            ObjectType::Boolean => format!("boolean({})", self.as_boolean().unwrap()),
+            ObjectType::Float => format!("float({})", self.as_f32().expect("Couldn't take as f32")),
+            ObjectType::String => format!("string(\"{}\")", self.as_str().expect("Couldn't take as str")),
+            ObjectType::Null => format!("null"),
+            ObjectType::Function => format!("function"),
+            ObjectType::NativeFunction => format!("nfunction"),
+            ObjectType::Void => format!("void")
+        }
+    }
 }
 
 impl Display for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.get_type() {
-            ObjectType::Integer => write!(f, "{}", self.as_integer().expect("Couldn't take as integer")),
             ObjectType::Boolean => write!(f, "{}", self.as_boolean().unwrap()),
-            ObjectType::Function => write!(f, "Function"),
-            ObjectType::NativeFunction => write!(f, "NFunction"),
+            ObjectType::Integer => write!(f, "{}", self.as_integer().expect("Couldn't take as integer")),
             ObjectType::Float => write!(f, "{}", self.as_f32().expect("Couldn't take as f32")),
             ObjectType::String => write!(f, "{}", self.as_str().expect("Couldn't take as str")),
-            ObjectType::Void => write!(f, "Void")
+            _ => write!(f, "{}", self.get_type().to_string())
         }
     }
 }
@@ -249,7 +254,7 @@ impl PartialEq for Object {
 
         match self.get_type() {
             ObjectType::Boolean | ObjectType::Integer | ObjectType::Void 
-            | ObjectType::Function | ObjectType::NativeFunction => self.0 == other.0,
+            | ObjectType::Function | ObjectType::NativeFunction | ObjectType::Null => self.0 == other.0,
 
             ObjectType::Float => self.as_f32().expect("Couldn't take as f32") == other.as_f32().expect("Couldn't take as f32"),
             ObjectType::String => self.as_str().expect("Couldn't take as str") == other.as_str().expect("Couldn't take as str")
@@ -262,7 +267,7 @@ impl PartialOrd for Object {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         debug_assert_eq!(self.get_type(), other.get_type());
         match self.get_type() {
-            ObjectType::Boolean | ObjectType::Integer => self.0.partial_cmp(&other.0),
+            ObjectType::Boolean | ObjectType::Integer | ObjectType::Null => self.0.partial_cmp(&other.0),
             ObjectType::Float => self.as_f32().expect("Couldn't take as f32").partial_cmp(&other.as_f32().expect("Couldn't take as f32")),
             ObjectType::String => self.as_str().expect("Couldn't take as string").partial_cmp(other.as_str().expect("Couldn't take as string")),
             ObjectType::Function => None,

@@ -544,6 +544,7 @@ impl<'a> Parser<'a> {
         let value = token.value;
 
         let result = match token.token_type {
+            TokenType::Null => Expression::LiteralExpr(Literal::Null),
             TokenType::Integer => {
                 let value = unwrap_result(value)?.get_value().parse::<i32>()?;
                 Expression::LiteralExpr(Literal::Integer(ast::IntegerLiteral(value)))
