@@ -1,7 +1,7 @@
 
 use std::error::Error;
 
-use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, BlockStatement, Expression, FunctionCallExpression, FunctionDeclareExpression, Identifier, IfStatement, Literal, LogicalOperator, Node, Operator, ReturnStatement, UnaryExpression, WhileStatement}};
+use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, BlockStatement, Expression, ForStatement, FunctionCallExpression, FunctionDeclareExpression, Identifier, IfStatement, Literal, LogicalOperator, Node, Operator, ReturnStatement, UnaryExpression, WhileStatement}};
 
 use self::{environment::Environment, object::{Object, ObjectType}};
 
@@ -54,8 +54,44 @@ impl<'a> Evaluator<'a> {
             Node::ElseStatement(statement) => self.eval_block(&statement.0),
             Node::ReturnStatement(statement) => self.eval_return(statement),
             Node::WhileStatement(statement) => self.eval_while(statement),
+            Node::ForStatement(statement) => self.eval_for(statement),
             _ => error!(format!("Not implemented statement {:#?}", node))
         }
+    }
+
+    fn eval_for(&mut self, statement: &'a ForStatement) -> StatementResult<Object> {
+        let ForStatement(setter, condition, assignment, body) = statement;
+
+        let setter = match setter {
+            Expression::AssignmentExpr(setter) => setter,
+            _ => error!("Invalid for setter")
+        };
+
+        let condition = match condition {
+            Expression::BinaryExpr(condition) => condition,
+            _ => error!("Invalid for condition")
+        };
+
+        let assignment = match assignment {
+            Expression::AssignmentExpr(assignment) => assignment,
+            _ => error!("Invalid for assignment")
+        };
+
+        let mut result = (Object::void(), false);
+
+        let mut evaluator = self.new_scope();
+        evaluator.eval_assignment_expression(setter)?;
+        while evaluator.eval_binary_expression(condition)?.as_boolean().expect("Couldn't take as boolean") {
+            result = evaluator.eval_block(body)?;
+            
+            if result.1 {
+                break;
+            }
+
+            evaluator.eval_assignment_expression(assignment)?;
+        }
+
+        Ok(result)
     }
 
     fn eval_while(&mut self, statement: &'a WhileStatement) -> StatementResult<Object> {

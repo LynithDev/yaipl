@@ -239,7 +239,30 @@ impl<'a> Parser<'a> {
     }
 
     fn for_statement(&mut self) -> ParserResult<Node> {
-        error!("For statement not implemented")
+        let _ = self.consume(TokenType::LeftParen);
+        let variable = self.var_declaration()?;
+
+        let condition = self.or()?;
+        self.consume(TokenType::EndOfLine)?;
+        
+        let assignment = self.assignment()?;
+        let _ = self.consume(TokenType::RightParen);
+
+        let body = self.block()?;
+
+        let variable = match variable {
+            Node::ExpressionStatement(ExpressionStatement(assignment)) => assignment,
+            _ => error!("Expected variable declaration")
+        };
+
+        Ok(Node::ForStatement(
+            ast::ForStatement(
+                variable,
+                condition,
+                assignment,
+                Box::from(body),
+            )
+        ))
     }
 
     fn return_statement(&mut self) -> ParserResult<Node> {
