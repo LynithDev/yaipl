@@ -1,0 +1,14 @@
+my_number = 5;
+my_float = 2.50;
+
+check_number = (num) {
+    if typeof(num) == "float" {
+        println("It's a float!");
+    } else {
+        println("It's not a float! " + typeof(my_number) + " " + my_number);
+    }
+}
+
+check_number(my_number);
+check_number(my_float);
+println("Result: " + (my_number + my_float));

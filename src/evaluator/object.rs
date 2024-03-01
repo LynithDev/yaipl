@@ -306,7 +306,7 @@ macro_rules! impl_arithmetic {
                 (ObjectType::Float, ObjectType::Integer) => Object::float($lhs.as_f32().expect("Couldn't take as f32") $op $rhs.as_integer().expect("Couldn't take as integer") as f32),
                 (ObjectType::Integer, ObjectType::Float) => Object::float($lhs.as_integer().expect("Couldn't take as integer") as f32 $op $rhs.as_f32().expect("Couldn't take as f32")),
                 $($pat => $result,)*
-                _ => return Err(Error::TypeError(format!("Operator {:?} cannot be used for type {:?}", stringify!($op), $lhs.get_type()))),
+                _ => return Err(Error::TypeError(format!("Operator '{}' cannot be used for types '{:?}' and '{:?}'", stringify!($op), $lhs.get_type(), $rhs.get_type()))),
             };
 
             Ok(result)
