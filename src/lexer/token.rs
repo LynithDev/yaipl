@@ -104,6 +104,8 @@ pub enum TokenType {
 
     // keywords
     If,
+    ElIf,
+    Else,
     While,
     For,
     Return,

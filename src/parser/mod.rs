@@ -2,7 +2,7 @@ use std::{error::Error, vec};
 
 use crate::{create_error, create_error_list, error, errors::ErrorWithPosition, evaluator::object::FUNCTION_PREFIX, lexer::token::{Position, Token, TokenLiteral, TokenType, Tokens}, parser::ast::Literal, utils::unwrap_result};
 
-use self::ast::{assignment_to_arithmetic, op_token_to_arithmetic, op_token_to_assignment, op_token_to_logical, BlockStatement, EmptyStatement, Expression, ExpressionStatement, Identifier, Node, Program};
+use self::ast::{assignment_to_arithmetic, op_token_to_arithmetic, op_token_to_assignment, op_token_to_logical, BlockStatement, EmptyStatement, Expression, ExpressionStatement, Identifier, IfStatement, Node, Program};
 
 pub mod ast;
 
@@ -192,14 +192,36 @@ impl<'a> Parser<'a> {
         Ok(Node::ExpressionStatement(self.expression_statement()?))
     }
 
+    fn else_statement(&mut self) -> ParserResult<Node> {
+        let body = self.block()?;
+        Ok(Node::ElseStatement(ast::ElseStatement(Box::from(body))))
+    }
+
     fn if_statement(&mut self) -> ParserResult<Node> {
         let condition = self.expression()?;
         let body = self.block()?;
+
+        let maybe_else = if let Some(token) = self.peek() {
+            match token.token_type {
+                TokenType::ElIf => {
+                    self.consume(TokenType::ElIf)?;
+                    Some(Box::from(self.if_statement()?))
+                },
+                TokenType::Else => {
+                    self.consume(TokenType::Else)?;
+                    Some(Box::from(self.else_statement()?))
+                },
+                _ => None
+            }
+        } else {
+            None
+        };
 
         Ok(Node::IfStatement(
             ast::IfStatement(
                 condition,
                 Box::from(body),
+                maybe_else,
             )
         ))
     }

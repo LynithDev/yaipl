@@ -133,6 +133,8 @@ impl Lexer {
         
                                 // Keywords
                                 "if" => (TokenType::If, None),
+                                "elif" => (TokenType::ElIf, None),
+                                "else" => (TokenType::Else, None),
                                 "while" => (TokenType::While, None),
                                 "for" => (TokenType::For, None),
                                 "return" => (TokenType::Return, None),

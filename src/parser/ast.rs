@@ -141,7 +141,8 @@ create_struct!(ContinueStatement);
 create_struct!(BreakStatement);
 create_struct!(ExpressionStatement, Expression);
 create_struct!(ReturnStatement, Option<Expression>);
-create_struct!(IfStatement, Expression, Box<BlockStatement>);
+create_struct!(IfStatement, Expression, Box<BlockStatement>, Option<Box<Node>>);
+create_struct!(ElseStatement, Box<BlockStatement>);
 create_struct!(WhileStatement, Expression, Box<BlockStatement>);
 create_struct!(ForStatement, Expression, Expression, Expression, Box<BlockStatement>);
 
@@ -155,6 +156,7 @@ pub enum Node {
     ContinueStatement(ContinueStatement),
     BreakStatement(BreakStatement),
     IfStatement(IfStatement),
+    ElseStatement(ElseStatement),
     WhileStatement(WhileStatement),
     ForStatement(ForStatement),
 }

@@ -1,7 +1,7 @@
 
 use std::error::Error;
 
-use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, BlockStatement, Expression, FunctionCallExpression, FunctionDeclareExpression, Identifier, IfStatement, Literal, LogicalOperator, Node, Operator, ReturnStatement, UnaryExpression, WhileStatement}};
+use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, BlockStatement, ElseStatement, Expression, FunctionCallExpression, FunctionDeclareExpression, Identifier, IfStatement, Literal, LogicalOperator, Node, Operator, ReturnStatement, UnaryExpression, WhileStatement}};
 
 use self::{environment::Environment, object::{Object, ObjectType}};
 
@@ -51,6 +51,7 @@ impl<'a> Evaluator<'a> {
             Node::EmptyStatement(_) => Ok((Object::void(), false)),
             Node::ExpressionStatement(expr) => Ok((self.eval_expression(&expr.0)?, false)),
             Node::IfStatement(statement) => self.eval_if(statement),
+            Node::ElseStatement(statement) => self.eval_block(&statement.0),
             Node::ReturnStatement(statement) => self.eval_return(statement),
             Node::WhileStatement(statement) => self.eval_while(statement),
             _ => error!(format!("Not implemented statement {:#?}", node))
@@ -85,12 +86,16 @@ impl<'a> Evaluator<'a> {
     }
 
     fn eval_if(&mut self, statement: &'a IfStatement) -> StatementResult<Object> {
-        let IfStatement(condition, block) = statement;
+        let IfStatement(condition, block, elif) = statement;
         let condition = self.eval_expression(condition)?;
 
         if condition.is(ObjectType::Boolean) {
             if condition.as_boolean().expect("Couldn't take as boolean") {
                 return self.eval_block(block);
+            }
+
+            if let Some(elif) = elif {
+                return self.eval_statement(&elif);
             }
         }
 
