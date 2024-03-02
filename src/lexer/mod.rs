@@ -1,27 +1,7 @@
-use crate::{create_error, create_error_list, error, errors::ErrorWithPosition};
+use crate::{error, errors::{DynamicError, LexerError}};
 use self::token::{Position, Token, TokenLiteral, TokenType, Tokens};
 
 pub mod token;
-
-/* ERRORS */
-create_error!(LexerError, {
-    token_type: Option<TokenType>,
-    pos: Position
-});
-
-impl ErrorWithPosition for LexerError {
-    fn position(&self) -> Position {
-        self.pos.to_owned()
-    }
-}
-
-create_error!(LexerOutOfBounds, {});
-
-create_error_list!(LexerErrors, {
-    LexerError,
-    LexerOutOfBounds
-});
-/* END ERRORS */
 
 pub struct Lexer {
     pub tokens: Tokens,
@@ -50,7 +30,7 @@ impl Lexer {
         format!("[\n{}]", builder)
     }
 
-    pub fn tokenize(&mut self) -> Result<&Tokens, LexerErrors> {
+    pub fn tokenize(&mut self) -> Result<&Tokens, DynamicError> {
         while !self.chars.is_empty() {
             let mut char = self.remove_char(0)?;
 
@@ -196,9 +176,9 @@ impl Lexer {
         Ok(&self.tokens)
     }
 
-    fn remove_char(&mut self, index: usize) -> Result<char, LexerErrors> {
+    fn remove_char(&mut self, index: usize) -> Result<char, DynamicError> {
         if index > self.chars.len() {
-            error!("Index out of bounds")
+            error!(LexerError::OutOfBounds { index: index.to_string() })
         }
 
         self.pos_advance(1);
@@ -207,7 +187,7 @@ impl Lexer {
         Ok(char)
     }
 
-    fn parse_word(&mut self, char: &mut char) -> Result<String, LexerErrors> {
+    fn parse_word(&mut self, char: &mut char) -> Result<String, DynamicError> {
         let mut word = String::new();
 
         while !self.chars.is_empty() && !char.is_whitespace() && !self.is_comment(&char) && self.match_char(char.to_owned()).is_none() {
@@ -222,7 +202,7 @@ impl Lexer {
         char == &'#'
     }
 
-    fn parse_string(&mut self, char: &mut char) -> Result<String, LexerErrors> {
+    fn parse_string(&mut self, char: &mut char) -> Result<String, DynamicError> {
         let mut builder = String::new();
         *char = self.remove_char(0)?;
 
@@ -251,7 +231,10 @@ impl Lexer {
                         
                         let unicode = match u32::from_str_radix(&hex, 16) {
                             Ok(unicode) => unicode,
-                            Err(_) => error!("Invalid unicode escape sequence")
+                            Err(_) => error!(LexerError::InvalidCharacter { 
+                                character: char.to_owned(), 
+                                pos: self.get_pos()
+                            })
                         };
 
                         builder.push(std::char::from_u32(unicode).unwrap());

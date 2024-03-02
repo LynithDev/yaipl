@@ -280,17 +280,13 @@ impl PartialOrd for Object {
 #[derive(Debug, PartialEq)]
 pub enum Error {
     TypeError(String),
-    SyntaxError(String),
-    ReferenceError(String),
 }
 
 impl std::error::Error for Error {}
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Error::TypeError(msg) => write!(f, "Type error: {}", msg),
-            Error::SyntaxError(msg) => write!(f, "Syntax error: {}", msg),
-            Error::ReferenceError(msg) => write!(f, "Reference error: {}", msg),
+            Error::TypeError(msg) => write!(f, "{}", msg),
         }
     }
 }
@@ -311,7 +307,7 @@ macro_rules! impl_arithmetic {
                 (ObjectType::Float, ObjectType::Integer) => Object::float($lhs.as_f32().expect("Couldn't take as f32") $op $rhs.as_integer().expect("Couldn't take as integer") as f32),
                 (ObjectType::Integer, ObjectType::Float) => Object::float($lhs.as_integer().expect("Couldn't take as integer") as f32 $op $rhs.as_f32().expect("Couldn't take as f32")),
                 $($pat => $result,)*
-                _ => return Err(Error::TypeError(format!("Operator '{}' cannot be used for types '{:?}' and '{:?}'", stringify!($op), $lhs.get_type(), $rhs.get_type()))),
+                _ => return Err(Error::TypeError(format!("Operator '&g&*{}&-&r' cannot be used for types '&g&*{:?}&-&r' and '&g&*{:?}&-&r'", stringify!($op), $lhs.get_type(), $rhs.get_type()))),
             };
 
             Ok(result)
@@ -324,7 +320,7 @@ macro_rules! impl_logical {
         pub fn $func_name(self, rhs: Self) -> Result<Object, Error> {
             let result = match (self.get_type(), rhs.get_type()) {
                 (ObjectType::Boolean, ObjectType::Boolean) => Object::boolean(self.as_boolean().expect("Couldn't take as boolean") $op rhs.as_boolean().expect("Couldn't take as boolean")),
-                _ => return Err(Error::TypeError(format!("Operator {} does not support types {:?} and {:?}", stringify!($op), self.get_type(), rhs.get_type())))
+                _ => return Err(Error::TypeError(format!("Operator '&g&*{}&-&r' cannot be used for types '&g&*{:?}&-&r' and '&g&*{:?}&-&r'", stringify!($op), self.get_type(), rhs.get_type())))
             };
             Ok(result)
         }
@@ -335,7 +331,7 @@ macro_rules! impl_comparison {
     ($func_name:ident, $op:tt) => {
         pub fn $func_name(self, rhs: Self) -> Result<Object, Error> {
             if self.get_type() != rhs.get_type() {
-                return Err(Error::TypeError(format!("Comparison does not support types {:?} and {:?}", self.get_type(), rhs.get_type())));
+                return Err(Error::TypeError(format!("Operator '&g&*{}&-&r' cannot be used for types '&g&*{:?}&-&r' and '&g&*{:?}&-&r'", stringify!($op), self.get_type(), rhs.get_type())));
             }
 
             Ok(Object::boolean(self $op rhs))
@@ -359,7 +355,7 @@ impl Object {
             (ObjectType::Float, ObjectType::Float) => Object::float(self.as_f32().expect("Couldn't take as f32").powf(rhs.as_f32().expect("Couldn't take as f32"))),
             (ObjectType::Float, ObjectType::Integer) => Object::float(self.as_f32().expect("Couldn't take as f32").powf(rhs.as_integer().expect("Couldn't take as integer") as f32)),
             (ObjectType::Integer, ObjectType::Float) => Object::float((self.as_integer().expect("Couldn't take as integer") as f32).powf(rhs.as_f32().expect("Couldn't take as f32"))),
-            _ => return Err(Error::TypeError(format!("Operator {:?} cannot be used for type {:?}", "**", self.get_type())))
+            _ => return Err(Error::TypeError(format!("Operator '&g&*{}&-&r' cannot be used for types '&g&*{:?}&-&r' and '&g&*{:?}&-&r", "^", self.get_type(), rhs.get_type()))),
         };
 
         Ok(result)

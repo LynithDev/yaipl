@@ -1,6 +1,6 @@
 use std::{fs, io::{stdin, stdout, Write}, process::exit};
 
-use another_interpreted_language::{errors::ErrorList, evaluator::{object::{Object, ObjectType}, Evaluator}, extract_type, lexer::{token::Tokens, Lexer}, parser::{ast::Node, Parser, ParserErrors, TokenMismatch}, utils::colors::{BLUE, BOLD, GREEN, MAGENTA, RED, RESET, UNDERLINE}};
+use another_interpreted_language::{error, errors::DynamicError, evaluator::{object::{Object, ObjectType}, Evaluator}, lexer::{token::Tokens, Lexer}, parser::{ast::Node, Parser}, utils::colors::{BLUE, BOLD, CYAN, GREEN, MAGENTA, RED, RESET, UNDERLINE, YELLOW}};
 
 pub const NAME: &str = "YAIPL";
 pub const NAME_LONG: &str = "Yet Another Interpreted Programming Language";
@@ -66,7 +66,7 @@ pub fn repl() {
     }
 }
 
-fn interpret(input: String) -> Result<(Tokens, Vec<Node>, Object), Box<dyn ErrorList>> {
+fn interpret(input: String) -> Result<(Tokens, Vec<Node>, Object), DynamicError> {
     let mut lexer = Lexer::from(&input);
     let tokens = lexer.tokenize()?;
 
@@ -80,10 +80,10 @@ fn interpret(input: String) -> Result<(Tokens, Vec<Node>, Object), Box<dyn Error
         return Ok((tokens.to_owned(), ast, result));
     }
 
-    return Err(Box::new(ParserErrors::String("Could not interpret input".to_string())));
+    error!("AST is not a program node.");
 }
 
-pub fn parse_file(path: &String) -> Result<(), Box<dyn ErrorList>> {
+pub fn parse_file(path: &String) -> Result<(), DynamicError> {
     let content = match fs::read_to_string(path) {
         Ok(text) => text,
         Err(err) => {
@@ -101,26 +101,19 @@ pub fn parse_file(path: &String) -> Result<(), Box<dyn ErrorList>> {
     Ok(())
 }
 
-fn handle_errors(err: Box<dyn ErrorList>, path: Option<String>) {
-    extract_type!(err, ParserErrors, TokenMismatch, (mismatch) => {
-        let path = match path {
-            Some(path) => format!("{}:{}:{}", path, mismatch.position.line, mismatch.position.col),
-            None => format!("{}:{}", mismatch.position.line, mismatch.position.col)
-        };
+fn handle_errors(err: DynamicError, path: Option<String>) {
+    let as_str = err.to_string()
+        .replace(r"{{path}}", &path.unwrap_or("unknown_path".to_string()))
+        .replace("&r", RED)
+        .replace("&g", GREEN)
+        .replace("&b", BLUE)
+        .replace("&c", CYAN)
+        .replace("&m", MAGENTA)
+        .replace("&y", YELLOW)
+        .replace("&-", RESET)
+        .replace("&_", UNDERLINE)
+        .replace("&*", BOLD);
 
-        println!("{}{}{} error{} at '{}{}{}'", RED, BOLD, mismatch.get_name(), RESET, BLUE, path, RESET);
-
-        print!("->{}{} ", MAGENTA, BOLD);
-        if mismatch.expected.len() > 1 {
-            println!("Expected tokens of type {:?} but found '{:?}'", mismatch.expected, mismatch.found);
-        } else {
-            println!("Expected token of type '{:?}' but found '{:?}'", mismatch.expected[0], mismatch.found);
-        }
-        print!("{}", RESET);
-
-        return;
-    });
-
-    println!("{:#?}", err);
+    println!("{}{}{}{}", RESET, RED, as_str, RESET);
 }
 

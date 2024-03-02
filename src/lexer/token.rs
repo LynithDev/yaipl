@@ -1,7 +1,15 @@
+use std::fmt::Display;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Position {
     pub line: usize,
     pub col: usize,
+}
+
+impl Display for Position {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.line, self.col)
+    }
 }
 
 impl Position {
@@ -61,6 +69,10 @@ impl Token {
 
     pub fn from(token: TokenType) -> Self {
         Self::from_value_pos(token, Position::from(0, 0), Position::from(0, 0), None)
+    }
+
+    pub fn pos_range(&self) -> (Position, Position) {
+        (self.start.to_owned(), self.end.to_owned())
     }
 }
 

@@ -1,7 +1,4 @@
-
-use std::error::Error;
-
-use crate::{create_error_list, error, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, BlockStatement, Expression, ForStatement, FunctionCallExpression, FunctionDeclareExpression, Identifier, IfStatement, Literal, LogicalOperator, Node, Operator, ReturnStatement, UnaryExpression, WhileStatement}};
+use crate::{error, errors::{DynamicError, EvaluatorError}, parser::ast::{ArithmeticOperator, Assignment, BinaryExpression, BlockStatement, Expression, ForStatement, FunctionCallExpression, FunctionDeclareExpression, Identifier, IfStatement, Literal, LogicalOperator, Node, Operator, ReturnStatement, UnaryExpression, WhileStatement}};
 
 use self::{environment::Environment, object::{Object, ObjectType}};
 
@@ -9,9 +6,7 @@ pub mod environment;
 pub mod object;
 pub mod yaipl_std;
 
-create_error_list!(EvaluatorErrors, {});
-
-pub type EvaluatorResult<T> = Result<T, Box<dyn Error>>;
+pub type EvaluatorResult<T> = Result<T, DynamicError>;
 pub type StatementResult<T> = EvaluatorResult<(T, bool)>;
 
 pub struct Evaluator<'a> {
@@ -34,7 +29,7 @@ impl<'a> Evaluator<'a> {
         Self::with_env(ast, env)
     }
 
-    pub fn eval(&mut self) -> Result<Object, EvaluatorErrors> {
+    pub fn eval(&mut self) -> Result<Object, DynamicError> {
         let mut result: Option<(Object, bool)> = None;
         
         for node in self.ast {
@@ -65,17 +60,23 @@ impl<'a> Evaluator<'a> {
 
         let setter = match setter {
             Expression::AssignmentExpr(setter) => setter,
-            _ => error!("Invalid for setter")
+            _ => error!(EvaluatorError::InvalidExpression { 
+                expected: String::from("AssignmentExpr")
+            })
         };
 
         let condition = match condition {
             Expression::BinaryExpr(condition) => condition,
-            _ => error!("Invalid for condition")
+            _ => error!(EvaluatorError::InvalidExpression { 
+                expected: String::from("BinaryExpr")
+            })
         };
 
         let assignment = match assignment {
             Expression::AssignmentExpr(assignment) => assignment,
-            _ => error!("Invalid for assignment")
+            _ => error!(EvaluatorError::InvalidExpression { 
+                expected: String::from("AssignmentExpr")
+            })
         };
 
         let mut result = (Object::void(), false);
@@ -201,13 +202,16 @@ impl<'a> Evaluator<'a> {
                     
                     ((function.2)(built_args), false)
                 },
-                _ => error!("not function :(")
+                _ => error!(EvaluatorError::InvalidType { 
+                    expected: vec![ObjectType::Function, ObjectType::NativeFunction],
+                    found: object.get_type(),
+                })
             };
 
             return Ok(result.0);
         }
         
-        error!("Couldn't find fucntion")
+        error!(EvaluatorError::ObjectNotFound { name: identifier.0.to_owned() })
     }
 
     fn eval_block(&mut self, expression: &'a BlockStatement) -> StatementResult<Object> {
@@ -235,7 +239,7 @@ impl<'a> Evaluator<'a> {
         
         match self.env.get(identifier) {
             Some(object) => Ok(object.to_owned()),
-            None => error!("Unidentified variable")
+            None => error!(EvaluatorError::ObjectNotFound { name: identifier.to_owned() })
         }
     }
 
@@ -271,11 +275,16 @@ impl<'a> Evaluator<'a> {
             return Ok(match object.get_type() {
                 ObjectType::Integer => Object::integer(-object.as_integer().expect("Couldn't take as integer")),
                 ObjectType::Float => Object::float(-object.as_f32().expect("Couldn't take as float")),
-                _ => error!("Not implemented")
+                _ => error!(EvaluatorError::InvalidType { 
+                    expected: vec![ObjectType::Integer, ObjectType::Float],
+                    found: object.get_type(),
+                })
             });
         }
 
-        error!("Not implemented")
+        error!(EvaluatorError::InvalidExpression { 
+            expected: String::from("UnaryExpression")
+        })
     }
 
     fn eval_binary_expression(&mut self, expression: &'a BinaryExpression) -> EvaluatorResult<Object> {
@@ -309,7 +318,7 @@ impl<'a> Evaluator<'a> {
 
         match result {
             Ok(object) => Ok(object),
-            Err(err) => error!(format!("{:?}", err))
+            Err(err) => return Err(err.into())
         }
 
     }

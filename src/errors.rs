@@ -1,170 +1,112 @@
-use std::fmt::Debug;
+use std::{error::Error, fmt::{Debug, Display}};
 
-use crate::lexer::token::Position;
+use crate::{evaluator::object::ObjectType, lexer::token::{Position, TokenType}};
 
-
-
-
-
-// TODO: GET RID OF THIJS
-
-
-
-pub trait ErrorWithPosition {
-    fn position(&self) -> Position;
-}
-
-#[macro_export]
-macro_rules! create_error {
-    ($name:ident, { $($field:ident : $field_type:ty),* $(,)? }) => {
-        #[derive(Debug, Clone, PartialEq)]
-        pub struct $name {
-            pub err: String,
-            $(pub $field : $field_type),*
-        }
-
-        impl $name {
-            pub fn from(err: String, $($field : $field_type),*) -> Self {
-                Self {
-                    err: err,
-                    $($field),*
-                }
-            }
-
-            pub fn from_str(err: &str, $($field : $field_type),*) -> Self {
-                $name::from(err.to_string(), $($field),*)
-            }
-
-            pub fn get_name(&self) -> String {
-                stringify!($name).to_string()
-            }
-        }
-
-        impl std::error::Error for $name {}
-        impl std::fmt::Display for $name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "{}", self.err)
-            }
-        }
-    };
-}
+pub type DynamicError = Box<dyn std::error::Error>;
 
 #[macro_export]
 macro_rules! error {
-    ($error_type:expr) => {
-        {
-            return Err($error_type.into());
-        }
-    }
+    ($arg:expr) => {
+        return Err($arg.into())
+    };
 }
 
-pub trait ErrorList {
-    fn list_name(&self) -> String;
-    fn print(&self) -> String;
-    fn error_name(&self) -> String;
-    fn as_any(&self) -> &dyn std::any::Any;
+macro_rules! fmt_pos {
+    ($pos:expr) => {
+        format!("'&_&c{{{{path}}}}:{}:{}&-&r'", $pos.line, $pos.col)
+    };
 }
 
-impl Debug for dyn ErrorList {
+macro_rules! fmt_token {
+    ($token:expr) => {
+        format!("&g&*{:?}&-&r", $token)
+    };
+}
+
+// --- Evaluator Errors ---
+#[derive(Debug, Clone)]
+pub enum EvaluatorError {
+    ObjectNotFound { name: String },
+    InvalidExpression {
+        expected: String
+    },
+    InvalidType {
+        expected: Vec<ObjectType>,
+        found: ObjectType,
+    },
+}
+
+impl Error for EvaluatorError {}
+impl Display for EvaluatorError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.print())
+        match self {
+            EvaluatorError::ObjectNotFound { name } => 
+                write!(f, "Object '&g&*{}&-&r' not found in current scope", name),
+            EvaluatorError::InvalidType { expected, found } => 
+                write!(f, "Invalid type, expected {}, found {:?}", fmt_token!(expected), fmt_token!(found)),
+            EvaluatorError::InvalidExpression { expected } =>
+                write!(f, "Invalid expression, expected '{:?}'", expected),
+        }
     }
 }
 
-#[macro_export]
-macro_rules! extract_type {
-    ($err:tt, $parent:tt, $name:tt, ($arg:ident) => $body:block) => {
-        if let Some($err) = $err.as_any().downcast_ref::<$parent>() {
-            match $err {
-                $parent::Error($err) => {
-                    if let Some($arg) = $err.downcast_ref::<$name>() {
-                        $body
-                    }
-                },
-                _ => {}
-            }
-        }
-    };
+
+// --- Parser Errors ---
+#[derive(Debug, Clone)]
+pub enum ParserError {
+    UnexpectedToken {
+        found: TokenType,
+        pos: Position
+    },
+    
+    InvalidToken {
+        expected: Vec<TokenType>,
+        found: TokenType,
+        pos: Position
+    },
+
+    InvalidStatement,
+    OutOfBounds { index: String },
 }
 
-#[macro_export]
-macro_rules! create_error_list {
-    ($name:ident, { $($error:ident),* $(,)? }) => {
-        #[derive(Debug)]
-        pub enum $name {
-            String(String),
-            Error(Box<dyn std::error::Error>),
-            $($error($error)),*
+impl Error for ParserError {}
+impl Display for ParserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParserError::UnexpectedToken { found, pos } => 
+                write!(f, "Unexpected token {} at {}", fmt_token!(found), fmt_pos!(pos)),
+
+            ParserError::InvalidToken { expected, found, pos } => 
+                write!(f, "Token {} was found at {}, expected {}", fmt_token!(found), fmt_pos!(pos), fmt_token!(expected)),
+                
+            ParserError::OutOfBounds { index } => 
+                write!(f, "Out of bounds for index &c{}", index),
+
+            ParserError::InvalidStatement =>
+                write!(f, "Invalid statement"),
         }
-
-        impl From<&str> for $name {
-            fn from(err: &str) -> Self {
-                $name::String(err.to_string())
-            }
-        }
-
-        impl From<Box<dyn std::error::Error>> for $name {
-            fn from(err: Box<dyn std::error::Error>) -> Self {
-                $name::Error(err)
-            }
-        }
-
-        impl From<$name> for Box<dyn crate::errors::ErrorList> {
-            fn from(error: $name) -> Self {
-                Box::new(error)
-            }
-        }
-
-        impl From<Box<dyn crate::errors::ErrorList>> for $name {
-            fn from(err: Box<dyn crate::errors::ErrorList>) -> Self {
-                $name::String(err.list_name())
-            }
-        }
-
-        impl crate::errors::ErrorList for $name {
-            fn list_name(&self) -> String {
-                return stringify!($name).to_string();
-            }
-
-            fn as_any(&self) -> &dyn std::any::Any {
-                self
-            }
-
-            fn print(&self) -> String {
-                match self {
-                    $name::Error(err) => {
-                        let result = format!("{:#?}", err);
-                        if result.starts_with("\"") && result.ends_with("\"") {
-                            format!("{}", err)
-                        } else {
-                            result
-                        }
-                    },
-                    $name::String(err) => err.to_owned(),
-                    $($name::$error(err) => format!("{:#?}", err)),*
-                }
-            }
-
-            fn error_name(&self) -> String {
-                match self {
-                    $name::Error(err) => format!("{:#?}", err).to_string().split_whitespace().next().unwrap_or("").to_string(),
-                    $name::String(_) => "None".to_string(),
-                    $($name::$error(_) => stringify!($name).to_string()),*
-                }
-            }
-        }
-
-        impl std::error::Error for $name {}
-        impl std::fmt::Display for $name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                match self {
-                    $name::Error(err) => write!(f, "{:#?}", err),
-                    $name::String(err) => write!(f, "{}", err),
-                    $($name::$error(err) => write!(f, "{}", err)),*
-                }
-            }
-        }
-    };
+    }
 }
 
-pub type DynamicError = Box<dyn std::error::Error>;
+
+// --- Lexer Errors ---
+#[derive(Debug, Clone)]
+pub enum LexerError {
+    OutOfBounds { index: String },
+    InvalidCharacter {
+        character: char,
+        pos: Position
+    },
+}
+
+impl Error for LexerError {}
+impl Display for LexerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LexerError::OutOfBounds { index } => 
+                write!(f, "Out of bounds at index {}", index),
+            LexerError::InvalidCharacter { character, pos } => 
+                write!(f, "Invalid character '{}' at {:?}", character, fmt_pos!(pos)),
+        }
+    }
+}
