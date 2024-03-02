@@ -14,20 +14,26 @@ impl<'a> Environment<'a> {
         }
     }
 
-    pub fn set(&mut self, identifier: &'a str, object: Object) {
-        self.name_store.push(identifier);
-        self.value_store.push(object);
+    pub fn size(&self) -> usize {
+        self.name_store.len()
     }
 
-    pub fn get_by_index(&self, index: usize) -> Option<(String, Object)> {
-        let name = self.name_store.get(index);
-        let value = self.value_store.get(index);
+    pub fn truncate(&mut self, size: usize) {
+        self.name_store.truncate(size);
+        self.value_store.truncate(size);
+    }
 
-        if name.is_some() && value.is_some() {
-            return Some(((*name.expect("Couldn't take name")).to_owned(), value.expect("Couldn't take value").to_owned()));
+    pub fn set(&mut self, identifier: &'a str, object: Object) {
+        if self.name_store.contains(&identifier) {
+            if let Some(pos) = self.name_store.iter().rev().position(|name| *name == identifier) {
+                let index = self.value_store.len() - 1 - pos;
+                self.value_store[index] = object;
+                return;
+            }
         }
 
-        None
+        self.name_store.push(identifier);
+        self.value_store.push(object);
     }
 
     pub fn get(&self, identifier: &String) -> Option<&Object> {

@@ -10,6 +10,7 @@ pub mod object;
 pub mod yaipl_std;
 
 create_error_list!(EvaluatorErrors, {});
+
 pub type EvaluatorResult<T> = Result<T, Box<dyn Error>>;
 pub type StatementResult<T> = EvaluatorResult<(T, bool)>;
 
@@ -79,17 +80,18 @@ impl<'a> Evaluator<'a> {
 
         let mut result = (Object::void(), false);
 
-        let mut evaluator = self.new_scope();
-        evaluator.eval_assignment_expression(setter)?;
-        while evaluator.eval_binary_expression(condition)?.as_boolean().expect("Couldn't take as boolean") {
-            result = evaluator.eval_block(body)?;
+        let scope_size = self.new_scope();
+        self.eval_assignment_expression(setter)?;
+        while self.eval_binary_expression(condition)?.as_boolean().expect("Couldn't take as boolean") {
+            result = self.eval_block(body)?;
             
             if result.1 {
                 break;
             }
 
-            evaluator.eval_assignment_expression(assignment)?;
+            self.eval_assignment_expression(assignment)?;
         }
+        self.destroy_scope(scope_size);
 
         Ok(result)
     }
@@ -98,14 +100,14 @@ impl<'a> Evaluator<'a> {
         let WhileStatement(condition, block) = statement;
         let mut result = (Object::void(), false);
 
-        let mut evaluator = self.new_scope();
-        while evaluator.eval_expression(condition)?.as_boolean().expect("Couldn't take as boolean") {
-            result = evaluator.eval_block(block)?;
+        let scope_size = self.new_scope();
+        while self.eval_expression(condition)?.as_boolean().expect("Couldn't take as boolean") {
+            result = self.eval_block(block)?;
             if result.1 {
                 break;
             }
         }
-        self.destroy_scope(evaluator);
+        self.destroy_scope(scope_size);
 
         Ok(result)
     }
@@ -126,17 +128,17 @@ impl<'a> Evaluator<'a> {
         let condition = self.eval_expression(condition)?;
 
         if condition.is(ObjectType::Boolean) {
-            let mut evaluator = self.new_scope();
+            let scope_size = self.new_scope();
 
             let result = if condition.as_boolean().expect("Couldn't take as boolean") {
-                evaluator.eval_block(block)
+                self.eval_block(block)
             } else if let Some(elif) = elif {
-                evaluator.eval_statement(&elif)
+                self.eval_statement(&elif)
             } else {
                 Ok((Object::void(), false))
             };
 
-            self.destroy_scope(evaluator);
+            self.destroy_scope(scope_size);
             return result;
         };
 
@@ -157,13 +159,12 @@ impl<'a> Evaluator<'a> {
         })
     }
 
-    // TODO: Scope doesn't work properly. Global variables modified in scopes are not reflected in the global scope
-    fn new_scope(&self) -> Evaluator {
-        Evaluator::with_env(self.ast, self.env.clone())
+    fn new_scope(&self) -> usize {
+        self.env.size()
     }
 
-    fn destroy_scope(&self, evaluator: Evaluator) {
-        std::mem::drop(evaluator);
+    fn destroy_scope(&mut self, size: usize) {
+        self.env.truncate(size);
     }
 
     fn eval_func_call_expression(&mut self, expression: &'a FunctionCallExpression) -> EvaluatorResult<Object> {
@@ -181,14 +182,14 @@ impl<'a> Evaluator<'a> {
                         built_args.push(self.eval_expression(arg)?);
                     }
             
-                    let mut scope = self.new_scope();
+                    let scope_size = self.new_scope();
                     for (index, arg) in built_args.iter().enumerate() {
                         let identifier = &function.1[index];
-                        scope.env.set(&identifier.0, arg.to_owned());
+                        self.env.set(&identifier.0, arg.to_owned());
                     }
                     
-                    let result = scope.eval_block(&function.2)?;
-                    self.destroy_scope(scope);
+                    let result = self.eval_block(&function.2)?;
+                    self.destroy_scope(scope_size);
                     result
                 },
                 ObjectType::NativeFunction => {
