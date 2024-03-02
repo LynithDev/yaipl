@@ -1,6 +1,6 @@
 use std::{alloc::{alloc, dealloc, Layout}, cmp::Ordering, fmt::Display, ptr::{addr_of_mut, drop_in_place}};
 
-use crate::parser::ast::FunctionDeclareExpression;
+use crate::parser::ast::{Expression, FunctionDeclareExpression};
 
 use super::environment::Environment;
 
@@ -11,16 +11,24 @@ pub const FUNCTION_PREFIX: &str = "__fc_";
 #[derive(Clone, Debug)]
 pub struct Object(*mut u8);
 
+const TAG_MASK: usize = 0b111;
+const PTR_MASK: usize = !TAG_MASK;
+const VALUE_SHIFT_BITS: usize = 3;
+
+// TODO: Fix this. Tagged pointers cannot have more than 8 bits which is not enough for the amount of types we have
+// Possibly remove NativeFunction 
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum ObjectType {
+    Null,
     Integer,
     Boolean,
     Float,
     String,
-    Null,
+    List,
     Function,
     NativeFunction,
-    Void
+    Void,
 }
 
 impl Display for ObjectType {
@@ -31,6 +39,7 @@ impl Display for ObjectType {
             ObjectType::Float => f.write_str("float"),
             ObjectType::String => f.write_str("string"),
             ObjectType::Null => f.write_str("null"),
+            ObjectType::List => f.write_str("list"),
             ObjectType::Function => f.write_str("function"),
             ObjectType::NativeFunction => f.write_str("nfunction"),
             ObjectType::Void => f.write_str("void")
@@ -41,13 +50,9 @@ impl Display for ObjectType {
 #[derive(Clone, Debug)]
 pub struct NativeFunctionObject<'a>(pub &'a str, pub Vec<String>, pub fn(&mut Environment, Vec<Object>) -> Object);
 
-const TAG_MASK: usize = 0b111;
-const PTR_MASK: usize = !TAG_MASK;
-const VALUE_SHIFT_BITS: usize = 3;
-
 impl<'a> Object {
     fn from_type(pointer: *mut u8, object_type: ObjectType) -> Self {
-        Self((pointer as usize | object_type as usize) as _)
+        Self((pointer as usize | object_type as usize & TAG_MASK) as _)
     }
 
     pub fn null() -> Self {
@@ -61,7 +66,7 @@ impl<'a> Object {
     pub fn integer(value: i32) -> Self {
         Self::from_type((value << VALUE_SHIFT_BITS) as _, ObjectType::Integer)
     }
-
+    
     pub fn boolean(value: bool) -> Self {
         match value {
             false => Self::from_type(0 as _, ObjectType::Boolean),
@@ -69,6 +74,10 @@ impl<'a> Object {
         }
     }
 
+    pub fn list(list: &'a Vec<Expression>) -> Self {
+        Self::from_type(list as *const Vec<Expression> as _, ObjectType::List)
+    }
+    
     pub fn function(func: &'a FunctionDeclareExpression) -> Self {
         Self::from_type(func as *const FunctionDeclareExpression as _, ObjectType::Function)
     }
@@ -105,6 +114,13 @@ impl<'a> Object {
     pub fn as_integer(&self) -> Option<i32> {
         match self.get_type() {
             ObjectType::Integer => Some(self.0 as i32 >> VALUE_SHIFT_BITS),
+            _ => None
+        }
+    }
+
+    pub fn as_list(&self) -> Option<&'a Vec<Expression>> {
+        match self.get_type() {
+            ObjectType::List => Some(unsafe { self.get::<Vec<Expression>>() }),
             _ => None
         }
     }
@@ -162,9 +178,10 @@ impl<'a> Object {
     pub fn to_string_with_type(&self) -> String {
         match self.get_type() {
             ObjectType::Integer => format!("integer({})", self.as_integer().expect("Couldn't take as integer")),
-            ObjectType::Boolean => format!("boolean({})", self.as_boolean().unwrap()),
+            ObjectType::Boolean => format!("boolean({})", self.as_boolean().expect("Couldn't take as boolean")),
             ObjectType::Float => format!("float({})", self.as_f32().expect("Couldn't take as f32")),
             ObjectType::String => format!("string(\"{}\")", self.as_str().expect("Couldn't take as str")),
+            ObjectType::List => format!("list({})", self.as_list().expect("Couldn't take as list").len()),
             ObjectType::Null => format!("null"),
             ObjectType::Function => format!("function"),
             ObjectType::NativeFunction => format!("nfunction"),
@@ -176,10 +193,11 @@ impl<'a> Object {
 impl Display for Object {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.get_type() {
-            ObjectType::Boolean => write!(f, "{}", self.as_boolean().unwrap()),
+            ObjectType::Boolean => write!(f, "{}", self.as_boolean().expect("Couldn't take as boolean")),
             ObjectType::Integer => write!(f, "{}", self.as_integer().expect("Couldn't take as integer")),
             ObjectType::Float => write!(f, "{}", self.as_f32().expect("Couldn't take as f32")),
             ObjectType::String => write!(f, "{}", self.as_str().expect("Couldn't take as str")),
+            ObjectType::List => write!(f, "[{}]", self.as_list().expect("Couldn't take as list").iter().map(|x| format!("{}", x)).collect::<Vec<String>>().join(", ")),
             _ => write!(f, "{}", self.get_type().to_string())
         }
     }
@@ -256,7 +274,8 @@ impl PartialEq for Object {
 
         match self.get_type() {
             ObjectType::Boolean | ObjectType::Integer | ObjectType::Void 
-            | ObjectType::Function | ObjectType::NativeFunction | ObjectType::Null => self.0 == other.0,
+            | ObjectType::Function | ObjectType::NativeFunction | ObjectType::Null
+            | ObjectType::List => self.0 == other.0,
 
             ObjectType::Float => self.as_f32().expect("Couldn't take as f32") == other.as_f32().expect("Couldn't take as f32"),
             ObjectType::String => self.as_str().expect("Couldn't take as str") == other.as_str().expect("Couldn't take as str")
@@ -272,6 +291,7 @@ impl PartialOrd for Object {
             ObjectType::Boolean | ObjectType::Integer | ObjectType::Null => self.0.partial_cmp(&other.0),
             ObjectType::Float => self.as_f32().expect("Couldn't take as f32").partial_cmp(&other.as_f32().expect("Couldn't take as f32")),
             ObjectType::String => self.as_str().expect("Couldn't take as string").partial_cmp(other.as_str().expect("Couldn't take as string")),
+            ObjectType::List => self.as_list().expect("Couldn't take as list").len().partial_cmp(&other.as_list().expect("Couldn't take as list").len()),
             ObjectType::Function => None,
             ObjectType::NativeFunction => None,
             ObjectType::Void => None,

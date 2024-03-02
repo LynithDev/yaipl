@@ -174,7 +174,7 @@ impl<'a> Evaluator<'a> {
     fn eval_func_call_expression(&mut self, expression: &'a FunctionCallExpression) -> EvaluatorResult<Object> {
         let FunctionCallExpression(identifier, args) = expression;
         let object = self.env.get(&identifier.0);
-        
+
         if let Some(object) = object {
             let object = object.to_owned();
 
@@ -254,9 +254,10 @@ impl<'a> Evaluator<'a> {
     fn eval_literal(&self, expression: &Literal) -> EvaluatorResult<Object> {
         Ok(match expression {
             Literal::Integer(num) => Object::integer(num.0),
-            Literal::Boolean(bool) => Object::boolean(if bool.0 <= 0 { false } else { true }),
+            Literal::Boolean(bool) => Object::boolean(bool.0),
             Literal::Float(num) => Object::float(num.0),
             Literal::String(str) => Object::string(&str.0),
+            Literal::List(list) => Object::list(&list.0),
             Literal::Null => Object::null(),
         })
     }
@@ -267,7 +268,7 @@ impl<'a> Evaluator<'a> {
         let object = self.eval_expression(expr)?;
         if operator == &Operator::Logical(LogicalOperator::Not) {
             if object.is(ObjectType::Boolean) {
-                return Ok(Object::boolean(!object.as_boolean().expect("Couldn't take as boolean")));
+                return Ok(object);
             }
         }
 

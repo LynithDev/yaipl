@@ -53,6 +53,10 @@ pub fn repl() {
         let _ = stdout().flush();
         let _ = stdin.read_line(&mut buf);
 
+        if !buf.ends_with(';') {
+            buf.push(';');
+        }
+
         let (_, _, result) = match interpret(buf.to_owned()) {
             Ok(res) => res,
             Err(err) => {

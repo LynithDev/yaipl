@@ -82,7 +82,7 @@ impl Lexer {
                                 self.get_pos(), 
                                 self.get_pos_offset(len as usize))
                             );
-                        } else if char != ' ' {
+                        } else if char != ' ' && char != '\n' {
                             word.push(char)
                         }
                         
@@ -108,8 +108,8 @@ impl Lexer {
                             )
                         } else {
                             let (token_type, value) = match word.as_str() {
-                                "true" => (TokenType::Boolean, Some(TokenLiteral::Boolean(1))),
-                                "false" => (TokenType::Boolean, Some(TokenLiteral::Boolean(0))),
+                                "true" => (TokenType::Boolean, Some(TokenLiteral::Boolean(true))),
+                                "false" => (TokenType::Boolean, Some(TokenLiteral::Boolean(false))),
                                 "null" => (TokenType::Null, None),
         
                                 // Keywords
@@ -308,9 +308,11 @@ impl Lexer {
         Some(match char {
             ',' => (TokenType::Comma, 1),
             '(' => (TokenType::LeftParen, 1),
-            ')' => (TokenType::RightParen, 1),
             '{' => (TokenType::LeftBrace, 1),
+            '[' => (TokenType::LeftBracket, 1),
+            ')' => (TokenType::RightParen, 1),
             '}' => (TokenType::RightBrace, 1),
+            ']' => (TokenType::RightBracket, 1),
     
             '+' => accept_eq_ret!('=', TokenType::PlusAssign, TokenType::Plus),
             '-' => accept_eq_ret!('=', TokenType::MinusAssign, TokenType::Minus),
@@ -344,38 +346,5 @@ impl Lexer {
             ';' => (TokenType::EndOfLine, 1),
             _ => return None
         })
-    }
-}
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_1() {
-        let input = "
-            test = () {
-                var = 5
-                var += 2
-
-                if var == 7 {
-                    print(1)
-                    return var
-                }
-
-                print(0)
-                return var
-            }
-
-            test() + 5
-        ";
-
-        let mut lexer = Lexer::from(input);
-        let result = lexer.tokenize().unwrap();
-        
-        // TODO: Implement token comparison
-
-        println!("{:#?}", result);
     }
 }

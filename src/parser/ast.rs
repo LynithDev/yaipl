@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::lexer::token::{Token, TokenType};
 
 macro_rules! create_struct {
@@ -10,8 +12,8 @@ macro_rules! create_struct {
 create_struct!(StringLiteral, String);
 create_struct!(IntegerLiteral, i32);
 create_struct!(FloatLiteral, f32);
-create_struct!(BooleanLiteral, i8);
-create_struct!(Null);
+create_struct!(BooleanLiteral, bool);
+create_struct!(ListLiteral, Vec<Expression>);
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Literal {
@@ -19,7 +21,22 @@ pub enum Literal {
     Integer(IntegerLiteral),
     Float(FloatLiteral),
     Boolean(BooleanLiteral),
+    List(ListLiteral),
     Null
+}
+
+impl Display for Literal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Literal::String(string) => write!(f, "{}", string.0),
+            Literal::Integer(integer) => write!(f, "{}", integer.0),
+            Literal::Float(float) => write!(f, "{}", float.0),
+            Literal::Boolean(boolean) => write!(f, "{}", boolean.0),
+            Literal::List(list) => write!(f, "{:?}", list.0),
+            Literal::Null => write!(f, "null")
+        }
+    }
+
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -133,6 +150,16 @@ pub enum Expression {
     BlockExpr(BlockStatement),
     FunctionCallExpr(FunctionCallExpression),
     FunctionDeclareExpr(FunctionDeclareExpression),
+}
+
+impl Display for Expression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Expression::LiteralExpr(literal) => write!(f, "{}", literal),
+            _ => f.write_str(format!("{:?}", self).as_str())
+        }
+    }
+
 }
 
 pub type ProgramTree = Vec<Node>;

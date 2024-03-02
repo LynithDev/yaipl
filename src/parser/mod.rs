@@ -533,10 +533,6 @@ impl<'a> Parser<'a> {
         let value = token.value;
 
         let result = match token.token_type {
-            TokenType::LeftBrace => {
-                let block = self.block()?;
-                return Ok(Expression::BlockExpr(block));
-            },
             TokenType::Null => Expression::LiteralExpr(Literal::Null),
             TokenType::Integer => {
                 let value = unwrap_result(value)?.get_value().parse::<i32>()?;
@@ -547,7 +543,7 @@ impl<'a> Parser<'a> {
                 Expression::LiteralExpr(Literal::Float(ast::FloatLiteral(value)))
             },
             TokenType::Boolean => {
-                let value = unwrap_result(value)?.get_value().parse::<i8>()?;
+                let value = unwrap_result(value)?.get_value().parse::<bool>()?;
                 Expression::LiteralExpr(Literal::Boolean(ast::BooleanLiteral(value)))
             },
             TokenType::String => {
@@ -558,6 +554,14 @@ impl<'a> Parser<'a> {
                 let value = unwrap_result(value)?.get_value();
                 Expression::IdentifierExpr(ast::Identifier(value))
             }
+            TokenType::LeftBracket => {
+                self.advance();
+                return self.parse_bracket();
+            },
+            TokenType::LeftBrace => {
+                let block = self.block()?;
+                return Ok(Expression::BlockExpr(block));
+            },
             TokenType::LeftParen => {
                 self.advance();
                 let expression = self.expression()?;
@@ -573,6 +577,25 @@ impl<'a> Parser<'a> {
         
         self.advance();
         Ok(result)
+    }
+
+    fn parse_bracket(&mut self) -> ParserResult<Expression> {
+        let mut elements: Vec<Expression> = Vec::new();
+
+        loop {
+            if self.matches(TokenType::RightBracket) {
+                break;
+            }
+
+            elements.push(self.expression()?);
+
+            if !self.matches(TokenType::Comma) {
+                self.consume(TokenType::RightBracket)?;
+                break;
+            }
+        }
+
+        Ok(Expression::LiteralExpr(Literal::List(ast::ListLiteral(elements))))
     }
 
     fn consume(&mut self, token: TokenType) -> ParserResult<Token> {

@@ -26,7 +26,7 @@ impl Position {
 pub enum TokenLiteral {
     Float(f32),
     Integer(i32),
-    Boolean(i8),
+    Boolean(bool),
     String(String),
 }
 
@@ -85,6 +85,7 @@ pub enum TokenType {
     Float,
     Boolean,
     String,
+    List,
     Null,
     
     // Operators
@@ -127,8 +128,10 @@ pub enum TokenType {
     // Other
     LeftParen,
     LeftBrace,
+    LeftBracket,
     RightParen,
     RightBrace,
+    RightBracket,
     EndOfLine,
     EndOfFile,
     Symbol,
