@@ -2,6 +2,8 @@ use std::{alloc::{alloc, dealloc, Layout}, cmp::Ordering, fmt::Display, ptr::{ad
 
 use crate::parser::ast::FunctionDeclareExpression;
 
+use super::environment::Environment;
+
 // largely based on https://github.com/dannyvankooten/nederlang/blob/tree-walker/src/object.rs
 
 pub const FUNCTION_PREFIX: &str = "__fc_";
@@ -37,7 +39,7 @@ impl Display for ObjectType {
 }
 
 #[derive(Clone, Debug)]
-pub struct NativeFunctionObject<'a>(pub &'a str, pub Vec<String>, pub fn(Vec<Object>) -> Object);
+pub struct NativeFunctionObject<'a>(pub &'a str, pub Vec<String>, pub fn(&mut Environment, Vec<Object>) -> Object);
 
 const TAG_MASK: usize = 0b111;
 const PTR_MASK: usize = !TAG_MASK;

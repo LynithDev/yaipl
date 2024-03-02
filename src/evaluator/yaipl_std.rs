@@ -3,8 +3,12 @@ use super::{environment::Environment, object::{NativeFunctionObject, Object}};
 pub fn initialize<'a>(env: &mut Environment<'a>) {
     macro_rules! function {
         ($name:literal, [$($args:tt),*], ($arg_param:tt) => $body:block) => {
+            function!($name, [$($args),*], (_, $arg_param) => $body);
+        };
+
+        ($name:literal, [$($args:tt),*], ($env:tt, $arg_param:tt) => $body:block) => {
             {
-                let function = NativeFunctionObject(concat!("__fc_", $name), vec!($($args.to_string()),*), |$arg_param| {
+                let function = NativeFunctionObject(concat!("__fc_", $name), vec!($($args.to_string()),*), |$env, $arg_param| {
                     $body
                 });
 
@@ -17,6 +21,11 @@ pub fn initialize<'a>(env: &mut Environment<'a>) {
             }
         };
     }
+
+    function!("yaipl_debug_env", [], (env, _) => {
+        println!("{:#?}", env);
+        Object::void()
+    });
 
     function!("print", ["arg"], (args) => {
         let value = if args.len() > 0 {

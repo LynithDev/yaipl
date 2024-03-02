@@ -42,16 +42,6 @@ impl<'a> Evaluator<'a> {
         Ok(result.0)
     }
 
-    fn match_one_of(&self, object: &Object, types: Vec<ObjectType>) -> bool {
-        for object_type in types {
-            if object.get_type() == object_type {
-                return true;
-            }
-        }
-
-        false
-    }
-
     fn eval_statement(&mut self, node: &'a Node) -> StatementResult<Object> {
         match node {
             Node::BlockStatement(block) => self.eval_block(block),
@@ -187,14 +177,15 @@ impl<'a> Evaluator<'a> {
         
         if let Some(object) = object {
             let object = object.to_owned();
+
+            let mut built_args: Vec<Object> = Vec::new();
+            for arg in args {
+                built_args.push(self.eval_expression(arg)?);
+            }
             
             let result = match object.get_type() {
                 ObjectType::Function => {
                     let function = object.as_function().expect("Couldn't take as function");
-                    let mut built_args: Vec<Object> = Vec::new();
-                    for arg in args {
-                        built_args.push(self.eval_expression(arg)?);
-                    }
             
                     let scope_size = self.new_scope();
                     for (index, arg) in built_args.iter().enumerate() {
@@ -208,12 +199,8 @@ impl<'a> Evaluator<'a> {
                 },
                 ObjectType::NativeFunction => {
                     let function = object.as_native_function().expect("Couldn't take as natve function");
-                    let mut built_args: Vec<Object> = Vec::new();
-                    for arg in args {
-                        built_args.push(self.eval_expression(arg)?);
-                    }
                     
-                    ((function.2)(built_args), false)
+                    ((function.2)(&mut self.env, built_args), false)
                 },
                 _ => error!(EvaluatorError::InvalidType { 
                     expected: vec![ObjectType::Function, ObjectType::NativeFunction],
@@ -260,13 +247,6 @@ impl<'a> Evaluator<'a> {
         let Assignment(identifier, literal) = expression;
 
         let value = self.eval_statement(&literal)?.0;
-        if !self.match_one_of(&value, vec![ObjectType::Float, ObjectType::Integer, ObjectType::Boolean, ObjectType::String, ObjectType::Null]) {
-            error!(EvaluatorError::InvalidType { 
-                expected: vec![ObjectType::Float, ObjectType::Integer, ObjectType::Boolean, ObjectType::String, ObjectType::Null],
-                found: value.get_type(),
-            });
-        }
-
         self.env.set(&identifier.0, value);
         Ok(Object::void())
     }
