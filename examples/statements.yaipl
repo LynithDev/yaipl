@@ -6,6 +6,5 @@ result = if (typeof(my_nullish_variable) == "null") {
     return "variable 'i_am_null' is not null :)";
 };
 
-yaipl_debug_env();
-
 println(result);
+

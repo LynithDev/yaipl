@@ -140,6 +140,7 @@ impl<'a> Parser<'a> {
         }
 
         self.consume(TokenType::RightBrace)?;
+        let _ = self.consume(TokenType::EndOfLine);
 
         Ok(ast::BlockStatement(statements))
     }
@@ -267,7 +268,11 @@ impl<'a> Parser<'a> {
 
     fn expression_statement(&mut self) -> ParserResult<ExpressionStatement> {
         let expression = self.expression()?;
-        self.consume(TokenType::EndOfLine)?;
+        if let Some(token) = self.previous() {
+            if token.token_type != TokenType::RightBrace {
+                self.consume(TokenType::EndOfLine)?;
+            }
+        }
         Ok(ExpressionStatement(expression))
     }
 
