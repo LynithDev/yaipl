@@ -30,14 +30,27 @@ impl<'a> Evaluator<'a> {
     }
 
     pub fn eval(&mut self) -> Result<Object, DynamicError> {
-        let mut result: Option<(Object, bool)> = None;
+        let mut result: (Object, bool) = (Object::void(), false);
         
         for node in self.ast {
-            result = Some(self.eval_statement(node)?);
+            result = self.eval_statement(node)?;
+            if result.1 {
+                break;
+            }
         }
 
-        Ok(result.unwrap_or((Object::void(), false)).0)
-    } 
+        Ok(result.0)
+    }
+
+    fn match_one_of(&self, object: &Object, types: Vec<ObjectType>) -> bool {
+        for object_type in types {
+            if object.get_type() == object_type {
+                return true;
+            }
+        }
+
+        false
+    }
 
     fn eval_statement(&mut self, node: &'a Node) -> StatementResult<Object> {
         match node {
@@ -246,7 +259,14 @@ impl<'a> Evaluator<'a> {
     fn eval_assignment_expression(&mut self, expression: &'a Assignment) -> EvaluatorResult<Object> {
         let Assignment(identifier, literal) = expression;
 
-        let value = self.eval_expression(&literal)?;
+        let value = self.eval_statement(&literal)?.0;
+        if !self.match_one_of(&value, vec![ObjectType::Float, ObjectType::Integer, ObjectType::Boolean, ObjectType::String, ObjectType::Null]) {
+            error!(EvaluatorError::InvalidType { 
+                expected: vec![ObjectType::Float, ObjectType::Integer, ObjectType::Boolean, ObjectType::String, ObjectType::Null],
+                found: value.get_type(),
+            });
+        }
+
         self.env.set(&identifier.0, value);
         Ok(Object::void())
     }

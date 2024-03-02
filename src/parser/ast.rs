@@ -115,7 +115,7 @@ pub fn op_token_to_logical(op: &Token) -> Option<LogicalOperator> {
     }
 }
 
-create_struct!(Assignment, Identifier, Box<Expression>);
+create_struct!(Assignment, Identifier, Box<Node>);
 create_struct!(Identifier, String);
 create_struct!(BinaryExpression, Box<Expression>, Operator, Box<Expression>);
 create_struct!(UnaryExpression, Operator, Box<Expression>);

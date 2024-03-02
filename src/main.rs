@@ -102,6 +102,8 @@ pub fn parse_file(path: &String) -> Result<(), DynamicError> {
 }
 
 fn handle_errors(err: DynamicError, path: Option<String>) {
+    let name = format!("{:?}", err);
+    let name = name.split_once(' ').unwrap_or(("UnknownError", "")).0;
     let as_str = err.to_string()
         .replace(r"{{path}}", &path.unwrap_or("unknown_path".to_string()))
         .replace("&r", RED)
@@ -114,6 +116,6 @@ fn handle_errors(err: DynamicError, path: Option<String>) {
         .replace("&_", UNDERLINE)
         .replace("&*", BOLD);
 
-    println!("{}{}{}{}", RESET, RED, as_str, RESET);
+    println!("{}{}{}{} was thrown: {}{}", BLUE, name, RESET, RED, as_str, RESET);
 }
 

@@ -75,8 +75,7 @@ impl<'a> Parser<'a> {
         }
         self.current = old_current; // Reset current to before the failed attempt
 
-        let initializer = self.expression()?;
-        self.consume(TokenType::EndOfLine)?;
+        let initializer = self.statement()?;
 
         Ok(Node::ExpressionStatement(ExpressionStatement(
             Expression::AssignmentExpr(ast::Assignment(
@@ -295,11 +294,15 @@ impl<'a> Parser<'a> {
 
                 return Ok(Expression::AssignmentExpr(ast::Assignment(
                     identifier.to_owned(),
-                    Box::from(Expression::BinaryExpr(ast::BinaryExpression(
-                        Box::new(expression),
-                        ast::Operator::Arithmetic(arithmetic_op),
-                        Box::new(value),
-                    ))),
+                    Box::from(Node::ExpressionStatement(
+                        ExpressionStatement(
+                            Expression::BinaryExpr(ast::BinaryExpression(
+                                Box::new(expression),
+                                ast::Operator::Arithmetic(arithmetic_op),
+                                Box::new(value),
+                            ))
+                        )
+                    )),
                 )))
             }
         }
@@ -525,6 +528,10 @@ impl<'a> Parser<'a> {
         let value = token.value;
 
         let result = match token.token_type {
+            TokenType::LeftBrace => {
+                let block = self.block()?;
+                return Ok(Expression::BlockExpr(block));
+            },
             TokenType::Null => Expression::LiteralExpr(Literal::Null),
             TokenType::Integer => {
                 let value = unwrap_result(value)?.get_value().parse::<i32>()?;
